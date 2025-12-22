@@ -1,8 +1,3 @@
-import { inject } from 'https://cdn.jsdelivr.net/npm/@vercel/analytics/+esm';
-import { inject } from "@vercel/analytics"
-inject();
-
-
 import { loadModel, getRecommendations } from './recommendation.js';
 import { TMDB_API_KEY } from './config.js';
 
