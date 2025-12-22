@@ -5,8 +5,8 @@ let titleToId = {};
 
 export async function loadModel() {
     try {
-        // Ajout d'un timestamp pour éviter le cache du navigateur si vous régénérez le JSON
-        const response = await fetch('./data/model_data.json?v=' + new Date().getTime());
+        // Chargement du modèle sans forcer le cache-busting (Vercel gère le cache via le déploiement)
+        const response = await fetch('./data/model_data.json');
         if (!response.ok) throw new Error("Erreur HTTP " + response.status);
         
         movieData = await response.json();

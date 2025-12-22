@@ -5,6 +5,9 @@ const HEADERS = {
 };
 
 export default async function handler(request, response) {
+    // Cache Vercel Edge : 7 jours (604800s), car les images de films changent rarement
+    response.setHeader('Cache-Control', 'public, s-maxage=604800, stale-while-revalidate=86400');
+
     const { slug } = request.query;
 
     if (!slug) {

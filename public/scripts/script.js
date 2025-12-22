@@ -1,3 +1,6 @@
+import { inject } from 'https://cdn.jsdelivr.net/npm/@vercel/analytics/+esm';
+inject();
+
 import { loadModel, getRecommendations } from './recommendation.js';
 import { TMDB_API_KEY } from './config.js';
 
@@ -163,6 +166,7 @@ function initBackground() {
             const img = document.createElement('img');
             img.src = `data/posters/${posterFile}`;
             img.className = 'bg-poster';
+            img.alt = ""; // Decorative image
             // Pas de lazy loading pour éviter le "pop" visuel lors de la boucle
             column.appendChild(img);
         });
@@ -319,11 +323,17 @@ document.addEventListener('DOMContentLoaded', async () => {
     // UI Elements
     const fetchBtn = document.getElementById('fetchBtn');
     const usernameInput = document.getElementById('username');
+    
+    // Random Example User
+    const examples = ['titouannnnnn', 'regelegorila', 'julieplhs', 'eliotgoarin', 'leo1507'];
+    const randomExample = examples[Math.floor(Math.random() * examples.length)];
+    usernameInput.placeholder = `ex: ${randomExample}`;
+    usernameInput.value = ''; // Ensure empty to show placeholder
+
     const alphaInput = document.getElementById('alpha');
     const popInput = document.getElementById('popFactor');
     const ratingPowerInput = document.getElementById('ratingPower');
     const recCountInput = document.getElementById('recCount');
-    const tasteComplexityInput = document.getElementById('tasteComplexity');
     const excludeWlInput = document.getElementById('excludeWatchlist');
     
     // Display Elements
@@ -366,6 +376,9 @@ document.addEventListener('DOMContentLoaded', async () => {
     updateDisplay(alphaInput, alphaVal, 'alpha');
     updateDisplay(popInput, popVal, 'popFactor');
     updateDisplay(ratingPowerInput, ratingPowerVal, 'ratingPower');
+    
+    // Force default quantity to 30
+    recCountInput.value = 30;
     recCountVal.textContent = recCountInput.value;
 
     alphaInput.addEventListener('input', (e) => updateDisplay(e.target, alphaVal, 'alpha'));
@@ -373,15 +386,6 @@ document.addEventListener('DOMContentLoaded', async () => {
     ratingPowerInput.addEventListener('input', (e) => updateDisplay(e.target, ratingPowerVal, 'ratingPower'));
     recCountInput.addEventListener('input', (e) => recCountVal.textContent = e.target.value);
     
-    // Taste Complexity Display Update
-    const tasteComplexityVal = document.getElementById('tasteComplexityVal');
-    const updateTasteLabel = () => {
-        tasteComplexityVal.textContent = (tasteComplexityInput.value == 1) ? "Multi-Faceted" : "Average";
-    };
-    tasteComplexityInput.addEventListener('input', updateTasteLabel);
-    // Init label
-    updateTasteLabel();
-
     // 1.5 Init Input Enter Key
     usernameInput.addEventListener('keyup', (e) => {
         if (e.key === 'Enter') {
@@ -390,12 +394,12 @@ document.addEventListener('DOMContentLoaded', async () => {
     });
 
     // 2. Load Model
-    updateStatus("Chargement du modèle IA...");
+    updateStatus("Loading AI model...");
     const modelLoaded = await loadModel();
     if (modelLoaded) {
-        updateStatus("Modèle chargé. Prêt.");
+        updateStatus("Model loaded. Ready.");
     } else {
-        updateStatus("Erreur chargement modèle.", true);
+        updateStatus("Error loading model.", true);
         fetchBtn.disabled = true;
     }
 
@@ -409,36 +413,46 @@ document.addEventListener('DOMContentLoaded', async () => {
         const popInput = document.getElementById('popFactor');
         const ratingPowerInput = document.getElementById('ratingPower');
         const recCountInput = document.getElementById('recCount');
-        const tasteComplexityInput = document.getElementById('tasteComplexity');
         const excludeWlInput = document.getElementById('excludeWatchlist');
 
         toggleLoader(true);
-        updateStatus("Calcul des recommandations...");
+        updateStatus("Computing recommendations...");
         recList.innerHTML = '';
         statsDisplay.textContent = '';
 
         try {
             // B. Process Data
             const ratedFilms = currentUserData.films.filter(f => f.rating !== null);
+            const watchedFilms = currentUserData.films.filter(f => !f.username.startsWith('watchlist_'));
             
             if (ratedFilms.length === 0) {
-                throw new Error("Ce profil n'a noté aucun film.");
+                throw new Error("This profile hasn't rated any films.");
             }
 
             // Calcul Seuil (Top 5% par défaut)
             const allRatings = ratedFilms.map(f => f.rating);
-            const threshold = getQuantile(allRatings, 0.95);
+            let percentile = 0.95;
+            let threshold = getQuantile(allRatings, percentile);
 
             // Filtrage des films aimés
-            const likedMovies = ratedFilms
+            let likedMovies = ratedFilms
                 .filter(f => f.rating >= threshold)
                 .map(f => ({ title: f.title, rating: f.rating }));
+
+            // Si moins de 10 films, on élargit progressivement
+            while (likedMovies.length < 10 && percentile > 0.05) {
+                percentile -= 0.05;
+                threshold = getQuantile(allRatings, percentile);
+                likedMovies = ratedFilms
+                    .filter(f => f.rating >= threshold)
+                    .map(f => ({ title: f.title, rating: f.rating }));
+            }
 
             // Gestion Exclusion
             let excludeTitles = new Set();
             
-            // Toujours exclure ce qu'on a déjà vu (noté)
-            ratedFilms.forEach(f => excludeTitles.add(f.title));
+            // Toujours exclure ce qu'on a déjà vu (noté ou pas)
+            watchedFilms.forEach(f => excludeTitles.add(f.title));
 
             // Optionnel : Exclure la watchlist
             if (excludeWlInput.checked) {
@@ -448,16 +462,18 @@ document.addEventListener('DOMContentLoaded', async () => {
 
             // C. Run Algo
             const alpha = parseFloat(alphaInput.value);
-            const popFactor = parseFloat(popInput.value);
+            
+            // Remapping popFactor to allow negative values (penalize popularity)
+            // Input 0..1 -> Output -0.2..1
+            // 0 -> -0.2 (Slight penalty for popular films)
+            // 1 -> 1 (Strong boost for popular films)
+            const rawPop = parseFloat(popInput.value);
+            const popFactor = (rawPop * 1.2) - 0.2;
+
             const ratingPower = parseFloat(ratingPowerInput.value);
-            // Slider: 0 = Average (useNegatives=true), 1 = Multi-Faceted (useNegatives=false)
-            // Note: The logic in getRecommendations is: if useNegatives=true -> Average/Sum with negatives.
-            // Wait, let's check getRecommendations again.
-            // "if (useNegatives) ... Somme pondérée ... else ... Max Pooling"
-            // The user wants "Multi-Faceted" (Max Pooling) to be the default/high value.
-            // So if slider is 1 (Multi-Faceted), useNegatives should be FALSE.
-            // If slider is 0 (Average), useNegatives should be TRUE.
-            const useNegatives = (parseInt(tasteComplexityInput.value) === 0);
+            
+            // Default to Multi-Faceted (Max Pooling) which means useNegatives = false
+            const useNegatives = false;
 
             allRecommendations = getRecommendations(
                 likedMovies, 
@@ -470,17 +486,17 @@ document.addEventListener('DOMContentLoaded', async () => {
 
             // D. Render
             toggleLoader(false);
-            updateStatus(`Terminé !`);
+            updateStatus(`Done!`);
             
             statsDisplay.innerHTML = `
                 <small>
-                    Basé sur ${likedMovies.length} films (Note ≥ ${threshold.toFixed(1)})<br>
-                    ${excludeTitles.size} films exclus
+                    Based on ${likedMovies.length} films (Rating ≥ ${threshold.toFixed(1)})<br>
+                    ${excludeTitles.size} films excluded
                 </small>
             `;
 
             if (allRecommendations.length === 0) {
-                recList.innerHTML = '<p style="grid-column: 1/-1; text-align: center;">Aucune recommandation trouvée (trop de filtres ?)</p>';
+                recList.innerHTML = '<p style="grid-column: 1/-1; text-align: center;">No recommendations found (too many filters?)</p>';
                 return;
             }
 
@@ -491,7 +507,7 @@ document.addEventListener('DOMContentLoaded', async () => {
 
         } catch (err) {
             toggleLoader(false);
-            updateStatus("Erreur : " + err.message, true);
+            updateStatus("Error: " + err.message, true);
             console.error(err);
         }
     }
@@ -505,7 +521,7 @@ document.addEventListener('DOMContentLoaded', async () => {
         // Scroll smooth vers la zone de chargement
         document.getElementById('results-area').scrollIntoView({ behavior: 'smooth', block: 'start' });
 
-        updateStatus(`Analyse du profil de ${username}...`);
+        updateStatus(`Analyzing profile of ${username}...`);
         recList.innerHTML = '';
         statsDisplay.textContent = '';
 
@@ -515,7 +531,7 @@ document.addEventListener('DOMContentLoaded', async () => {
             const data = await res.json();
 
             if (!data.films || data.films.length === 0) {
-                throw new Error("Aucun film trouvé ou profil privé.");
+                throw new Error("No films found or private profile.");
             }
             
             currentUserData = data;
@@ -523,7 +539,7 @@ document.addEventListener('DOMContentLoaded', async () => {
 
         } catch (err) {
             toggleLoader(false);
-            updateStatus("Erreur : " + err.message, true);
+            updateStatus("Error: " + err.message, true);
             console.error(err);
         }
     });
@@ -652,14 +668,14 @@ async function updateGrid() {
 
         let logoHtml = '';
         if (movie.type === 'wide' && movie.logo) {
-            logoHtml = `<img src="${movie.logo}" class="movie-logo" alt="Logo">`;
+            logoHtml = `<img src="${movie.logo}" class="movie-logo" alt="${movie.title} Logo">`;
         }
 
         card.innerHTML = `
             ${logoHtml}
             <div class="match-score">
                 ${movie.score}%
-                <div class="score-tooltip">Score de pertinence basé sur vos goûts</div>
+                <div class="score-tooltip">Relevance score based on your tastes</div>
             </div>
             <div class="movie-content">
                 <div class="rank">#${movie.rank}</div>

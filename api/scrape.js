@@ -47,6 +47,9 @@ function parseFilms(html, username, isWatchlist = false) {
 }
 
 export default async function handler(request, response) {
+    // Cache Vercel Edge : 24h (86400s) en cache partagé, revalidation en arrière-plan autorisée
+    response.setHeader('Cache-Control', 'public, s-maxage=86400, stale-while-revalidate=43200');
+
     const { username } = request.query;
 
     if (!username) {
@@ -54,53 +57,68 @@ export default async function handler(request, response) {
     }
 
     try {
-        // 1. Infos Profil (Compteur Notes)
-        const profileHtml = await getPage(`https://letterboxd.com/${username}/`);
-        let ratingsCount = 0;
-        
-        if (profileHtml) {
-            const $ = cheerio.load(profileHtml);
-            const ratingsEl = $('section.ratings-histogram-chart a.all-link');
-            if (ratingsEl.length) {
-                ratingsCount = parseInt(ratingsEl.text().trim().replace(/,/g, ''), 10) || 0;
+        const tasks = [];
+        let allFilms = [];
+        let watchedCount = 0;
+        let watchlistCount = 0;
+
+        // 1. Films Watched (Page 1)
+        // On récupère la première page des films vus pour avoir le total et les premiers films
+        const filmsHtml = await getPage(`https://letterboxd.com/${username}/films/`);
+        if (filmsHtml) {
+            const $ = cheerio.load(filmsHtml);
+            
+            // Parse Page 1
+            const page1Films = parseFilms(filmsHtml, username, false);
+            allFilms.push(...page1Films);
+
+            // Get Count from tooltip (e.g. "153 films")
+            const tooltipText = $('.section-heading .tooltip').attr('title');
+            if (tooltipText) {
+                const match = tooltipText.replace(/,/g, '').replace(/\u00a0/g, ' ').match(/(\d+)/);
+                if (match) watchedCount = parseInt(match[1], 10);
+            } else {
+                watchedCount = page1Films.length;
+            }
+
+            // Generate tasks for remaining pages (72 films per page)
+            if (watchedCount > 72) {
+                const nbPages = Math.ceil(watchedCount / 72);
+                for (let i = 2; i <= nbPages; i++) {
+                    tasks.push({ url: `https://letterboxd.com/${username}/films/page/${i}/`, type: 'watched' });
+                }
             }
         }
 
-        // 2. Infos Watchlist (Compteur Watchlist)
+        // 2. Watchlist (Page 1)
         const watchlistHtml = await getPage(`https://letterboxd.com/${username}/watchlist/`);
-        let watchlistCount = 0;
         if (watchlistHtml) {
             const $ = cheerio.load(watchlistHtml);
+            
+            // Parse Page 1
+            const page1Watchlist = parseFilms(watchlistHtml, username, true);
+            allFilms.push(...page1Watchlist);
+
+            // Get Count
             const wlEl = $('.js-watchlist-count');
             if (wlEl.length) {
                 const text = wlEl.text().trim().replace(/,/g, '').replace(/\u00a0/g, ' ');
                 watchlistCount = parseInt(text.split(' ')[0], 10) || 0;
+            } else {
+                watchlistCount = page1Watchlist.length;
+            }
+
+            // Generate tasks for remaining pages (28 films per page)
+            if (watchlistCount > 28) {
+                const nbPages = Math.ceil(watchlistCount / 28);
+                for (let i = 2; i <= nbPages; i++) {
+                    tasks.push({ url: `https://letterboxd.com/${username}/watchlist/page/${i}/`, type: 'watchlist' });
+                }
             }
         }
 
-        // 3. Génération des URLs à scraper
-        const tasks = [];
-
-        // Pages des films notés (72 par page)
-        if (ratingsCount > 0) {
-            const nbPages = Math.ceil(ratingsCount / 72);
-            for (let i = 1; i <= nbPages; i++) {
-                tasks.push({ url: `https://letterboxd.com/${username}/films/page/${i}/`, type: 'rated' });
-            }
-        }
-
-        // Pages de la watchlist (28 par page environ)
-        if (watchlistCount > 0) {
-            const nbPages = Math.ceil(watchlistCount / 28);
-            for (let i = 1; i <= nbPages; i++) {
-                tasks.push({ url: `https://letterboxd.com/${username}/watchlist/page/${i}/`, type: 'watchlist' });
-            }
-        }
-
-        // 4. Exécution par lots (Batching) pour éviter de surcharger Vercel/Letterboxd
+        // 3. Execute remaining tasks
         const BATCH_SIZE = 5;
-        let allFilms = [];
-
         for (let i = 0; i < tasks.length; i += BATCH_SIZE) {
             const batch = tasks.slice(i, i + BATCH_SIZE);
             const results = await Promise.all(batch.map(async (task) => {
@@ -112,10 +130,10 @@ export default async function handler(request, response) {
 
         return response.status(200).json({
             username: username,
-            ratings_count: ratingsCount,
+            watched_count: watchedCount,
             watchlist_count: watchlistCount,
             total_films_retrieved: allFilms.length,
-            films: allFilms, // La liste complète des films
+            films: allFilms,
             source: "Vercel Serverless Function"
         });
 
