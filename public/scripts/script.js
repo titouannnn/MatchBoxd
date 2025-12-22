@@ -482,8 +482,7 @@ document.addEventListener('DOMContentLoaded', async () => {
             );
 
             // D. Render
-            toggleLoader(false);
-            updateStatus(`Done!`);
+            updateStatus(`Found ${allRecommendations.length} matches. Fetching posters...`);
             
             statsDisplay.innerHTML = `
                 <small>
@@ -494,10 +493,13 @@ document.addEventListener('DOMContentLoaded', async () => {
 
             if (allRecommendations.length === 0) {
                 recList.innerHTML = '<p style="grid-column: 1/-1; text-align: center;">No recommendations found (too many filters?)</p>';
+                toggleLoader(false);
                 return;
             }
 
             await updateGrid();
+            toggleLoader(false);
+            updateStatus(`Done!`);
 
             // Scroll smooth vers la grille de films une fois chargée
             recList.scrollIntoView({ behavior: 'smooth', block: 'start' });
@@ -604,6 +606,45 @@ async function updateGrid() {
         }
     }
 
+    // --- BATCH FETCHING LOGIC ---
+    // 1. Identify missing slugs
+    const slugsToFetch = [];
+    moviesToDisplay.forEach(item => {
+        if (!imageCache.has(item.slug)) {
+            slugsToFetch.push(item.slug);
+        }
+    });
+
+    // 2. Fetch in batches of 10
+    if (slugsToFetch.length > 0) {
+        const BATCH_SIZE = 10;
+        for (let i = 0; i < slugsToFetch.length; i += BATCH_SIZE) {
+            const batch = slugsToFetch.slice(i, i + BATCH_SIZE);
+            const slugsParam = batch.join(',');
+            try {
+                const res = await fetch(`/api/get-movie-image?slugs=${encodeURIComponent(slugsParam)}`);
+                if (res.ok) {
+                    const results = await res.json();
+                    // Update Cache
+                    Object.entries(results).forEach(([slug, imgUrl]) => {
+                        // On stocke un objet compatible avec la structure existante
+                        // Note: L'API batch ne renvoie que l'image principale (poster) pour l'instant
+                        // Si on a besoin de plus (backdrop/logo), il faudrait adapter l'API
+                        const title = formatTitle(slug);
+                        imageCache.set(slug, { 
+                            title: title, 
+                            poster: imgUrl,
+                            backdrop: null, // Pas dispo via batch simple pour l'instant
+                            logo: null 
+                        });
+                    });
+                }
+            } catch (e) {
+                console.error("Batch fetch error:", e);
+            }
+        }
+    }
+
     // Fetch images (with cache)
     const moviesWithImages = await Promise.all(moviesToDisplay.map(async (item, index) => {
         const slug = item.slug;
@@ -617,14 +658,13 @@ async function updateGrid() {
         }
         
         let cached = imageCache.get(slug);
+        
+        // Si on a l'image en cache, on l'utilise
         if (cached) {
-            if (type === 'wide' && !cached.logo) {
-                // Need to fetch logo, refetch
-            } else {
-                return { ...cached, slug, rank, type, score };
-            }
+            return { ...cached, slug, rank, type, score };
         }
         
+        // Fallback: Si le batch a échoué pour ce film, on tente le fetch individuel (ancien comportement)
         const title = formatTitle(slug);
         const imgData = await getMovieImage(slug, title, type);
         const data = { title, ...imgData };

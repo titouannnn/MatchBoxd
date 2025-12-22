@@ -2,37 +2,57 @@
 
 let movieData = null; 
 let titleToId = {};
+let vectorsBuffer = null; // Float32Array plat
 
 export async function loadModel() {
     try {
-        // Chargement du modèle sans forcer le cache-busting (Vercel gère le cache via le déploiement)
-        const response = await fetch('./data/model_data.json');
-        if (!response.ok) throw new Error("Erreur HTTP " + response.status);
+        // 1. Charger les métadonnées (léger)
+        const metaRes = await fetch('./data/model_metadata.json');
+        if (!metaRes.ok) throw new Error("Erreur HTTP Meta " + metaRes.status);
+        const meta = await metaRes.json();
+
+        // 2. Charger les vecteurs binaires (lourd mais compact)
+        const binRes = await fetch('./data/model_vectors.bin');
+        if (!binRes.ok) throw new Error("Erreur HTTP Bin " + binRes.status);
+        const buffer = await binRes.arrayBuffer();
         
-        movieData = await response.json();
+        // Reconstruction de l'objet movieData
+        movieData = {
+            titles: meta.titles,
+            norms: meta.norms,
+            vectorSize: meta.vectorSize,
+            count: meta.titles.length
+        };
+
+        // Stockage optimisé : Float32Array
+        vectorsBuffer = new Float32Array(buffer);
         
         // Création du mapping Titre -> Index
-        // On utilise toLowerCase() et trim() pour maximiser les correspondances
         movieData.titles.forEach((title, index) => {
             titleToId[String(title).toLowerCase().trim()] = index;
         });
         
-        console.log(`✅ Modèle chargé : ${movieData.titles.length} films.`);
+        console.log(`✅ Modèle chargé : ${movieData.titles.length} films (Binary Mode).`);
         return true;
     } catch (error) {
         console.error("❌ Impossible de charger le modèle :", error);
+        // Fallback JSON si besoin (optionnel)
         return false;
     }
 }
 
 /**
- * Produit Scalaire (Dot Product)
+ * Produit Scalaire optimisé pour Float32Array plat
+ * @param {Array} userVec - Vecteur utilisateur (Array standard ou Float32Array)
+ * @param {Float32Array} allVectors - Le grand buffer contenant tous les films
+ * @param {Number} idx - L'index du film (0..N)
+ * @param {Number} size - La taille d'un vecteur (128)
  */
-function dotProduct(vecA, vecB) {
+function dotProductFlat(userVec, allVectors, idx, size) {
     let sum = 0;
-    const len = vecA.length;
-    for (let i = 0; i < len; i++) {
-        sum += vecA[i] * vecB[i];
+    const offset = idx * size;
+    for (let i = 0; i < size; i++) {
+        sum += userVec[i] * allVectors[offset + i];
     }
     return sum;
 }
@@ -44,13 +64,12 @@ function dotProduct(vecA, vecB) {
  * @param {Number} ratingPower - (1.0) Sensibilité : 1.0 = Linéaire, 3.0 = Seuls les 5/5 comptent vraiment.
  * @param {Boolean} useNegatives - (false) Si true, les mauvaises notes repoussent les genres associés.
  */
-export function getRecommendations(likedMovies, excludeMovies, alpha = 3.0, popFactor = 0.4, ratingPower = 2.0, useNegatives = true) {    if (!movieData) return [];
+export function getRecommendations(likedMovies, excludeMovies, alpha = 3.0, popFactor = 0.4, ratingPower = 2.0, useNegatives = true) {    if (!movieData || !vectorsBuffer) return [];
 
     console.time("⏱️ Calcul Reco");
     
-    const itemVectors = movieData.vectors;
     const itemNorms = movieData.norms;
-    const vectorSize = itemVectors[0].length;
+    const vectorSize = movieData.vectorSize;
 
     // --- 1. IDENTIFICATION DES FILMS AIMÉS ---
     let targetIndices = [];
@@ -82,8 +101,8 @@ export function getRecommendations(likedMovies, excludeMovies, alpha = 3.0, popF
         const idx = targetIndices[i];
         let rating = targetRatings[i]; // ex: 4.5
         
-        const vec = itemVectors[idx];
         const norm = itemNorms[idx];
+        const offset = idx * vectorSize;
 
         // 1. Poids Rareté (Inchangé)
         const rarityWeight = 1.0 / (Math.pow(norm, alpha) + 1e-6);
@@ -117,7 +136,9 @@ export function getRecommendations(likedMovies, excludeMovies, alpha = 3.0, popF
 
         // 3. Agrégation (Adaptée aux négatifs)
         for (let dim = 0; dim < vectorSize; dim++) {
-            const weightedVal = vec[dim] * totalWeight;
+            // Accès direct au buffer plat
+            const val = vectorsBuffer[offset + dim];
+            const weightedVal = val * totalWeight;
             
             if (useNegatives) {
                 // Somme pondérée (Mieux pour gérer le positif/négatif ensemble)
@@ -155,14 +176,15 @@ export function getRecommendations(likedMovies, excludeMovies, alpha = 3.0, popF
     });
 
     let scores = [];
-    const catalogSize = itemVectors.length;
+    const catalogSize = movieData.count;
 
     for (let i = 0; i < catalogSize; i++) {
         if (excludeSet.has(i)) continue;
 
         // A. Similarité Cosinus (Goût)
         // userVector est normé, itemVectors[i] est normé -> Produit Scalaire = Cosinus
-        const similarity = dotProduct(userVector, itemVectors[i]);
+        // Utilisation de la version optimisée "Flat"
+        const similarity = dotProductFlat(userVector, vectorsBuffer, i, vectorSize);
 
         // B. Réinjection Popularité (Hype)
         // Score = Sim * (Norme ^ popFactor)
