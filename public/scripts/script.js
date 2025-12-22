@@ -126,6 +126,7 @@ function initBackground() {
     // Configuration
     const isMobile = window.innerWidth < 768;
     const posterWidth = isMobile ? 80 : 140; 
+    const posterHeight = isMobile ? 120 : 210; // Approx 2:3 ratio
     const gap = 15;
     const colWidth = posterWidth + gap;
     const screenWidth = window.innerWidth;
@@ -159,12 +160,23 @@ function initBackground() {
         }
 
         // Duplication pour la boucle infinie (Set A + Set A)
-        [...setImages, ...setImages].forEach(posterFile => {
+        const fullList = [...setImages, ...setImages];
+        fullList.forEach((posterFile, index) => {
             const img = document.createElement('img');
             img.src = `data/posters/${posterFile}`;
             img.className = 'bg-poster';
             img.alt = ""; // Decorative image
-            // Pas de lazy loading pour éviter le "pop" visuel lors de la boucle
+            img.width = posterWidth;
+            img.height = posterHeight;
+            
+            // Eager load only the first 2 images of each column (visible on screen)
+            // Lazy load the rest to save bandwidth and LCP
+            if (index < 2) {
+                img.loading = "eager";
+            } else {
+                img.loading = "lazy";
+            }
+            
             column.appendChild(img);
         });
 
@@ -311,6 +323,15 @@ document.addEventListener('DOMContentLoaded', async () => {
             const bg = document.getElementById('background-posters');
             if (targetId === 'how-it-works') {
                 bg.style.display = 'none';
+                
+                // Load MathJax dynamically if not present
+                if (!document.getElementById('MathJax-script')) {
+                    const script = document.createElement('script');
+                    script.id = 'MathJax-script';
+                    script.src = 'https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-mml-chtml.js';
+                    script.async = true;
+                    document.head.appendChild(script);
+                }
             } else {
                 bg.style.display = 'flex';
             }
