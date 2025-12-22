@@ -6,63 +6,83 @@
     <title>Letterboxd AI Recommender</title>
     <link rel="stylesheet" href="style.css">
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700&display=swap" rel="stylesheet">
+    <script src="https://polyfill.io/v3/polyfill.min.js?features=es6"></script>
+    <script id="MathJax-script" async src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-mml-chtml.js"></script>
 </head>
 <body>
+    <nav class="top-nav">
+        <button class="nav-btn active" data-target="engine-view">Recommendation engine</button>
+        <button class="nav-btn" data-target="how-it-works">How does it works ?</button>
+    </nav>
+
     <div id="background-posters"></div>
     <div class="app-container">
-        <header class="hero-section">
-            <h1>Find your next favorite film</h1>
-            <p class="subtitle">Enter your Letterboxd username below</p>
-            
-            <div class="search-wrapper">
-                <input type="text" id="username" class="search-input" placeholder="Entrez votre pseudo Letterboxd..." value="titouannnnnn">
-                <button id="fetchBtn" class="search-btn" aria-label="Lancer l'analyse">
-                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="8"></circle><line x1="21" y1="21" x2="16.65" y2="16.65"></line></svg>
-                </button>
-            </div>
-        </header>
+        <div id="engine-view">
+            <header class="hero-section">
+                <h1>Find your next favorite film</h1>
+                <p class="subtitle">Enter your Letterboxd username below</p>
+                
+                <div class="search-wrapper">
+                    <input type="text" id="username" class="search-input" placeholder="Entrez votre pseudo Letterboxd..." value="titouannnnnn">
+                    <button id="fetchBtn" class="search-btn" aria-label="Lancer l'analyse">
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="8"></circle><line x1="21" y1="21" x2="16.65" y2="16.65"></line></svg>
+                    </button>
+                </div>
+            </header>
 
-        <main>
-            <!-- Section Configuration -->
-            <section class="config-panel">
+            <main>
+                <!-- Section Configuration -->
+                <section class="config-panel">
                 <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 20px; align-items: end;">
-                    <!-- 1. Rareté -->
+                    <!-- 1. Niche Focus -->
                     <div class="setting-item">
                         <div class="label-with-icon">
-                            <span>Rareté</span>
+                            <span>Niche Focus</span>
                             <div class="info-icon">i
-                                <span class="tooltip-text">Définit si vous préférez des films de niche (élevé) ou populaires (faible).</span>
+                                <span class="tooltip-text">Ignores the blockbusters in your history to build your profile solely on the unique, specific films that define your true taste.</span>
                             </div>
                             <span id="alphaVal" style="margin-left: auto; color: var(--accent-color);">3.0</span>
                         </div>
                         <input type="range" id="alpha" min="0" max="5" step="0.1" value="3.0">
                     </div>
 
-                    <!-- 2. Mainstream -->
+                    <!-- 2. Mainstream Appeal -->
                     <div class="setting-item">
                         <div class="label-with-icon">
-                            <span>Mainstream</span>
+                            <span>Mainstream Appeal</span>
                             <div class="info-icon">i
-                                <span class="tooltip-text">Boost les films très connus pour éviter des recommandations trop obscures.</span>
+                                <span class="tooltip-text">Controls whether you prefer seeing famous hits or discovering obscure hidden gems in your results.</span>
                             </div>
-                            <span id="popVal" style="margin-left: auto; color: var(--accent-color);">0.4</span>
+                            <span id="popVal" style="margin-left: auto; color: var(--accent-color);">0.3</span>
                         </div>
-                        <input type="range" id="popFactor" min="0" max="1" step="0.1" value="0.4">
+                        <input type="range" id="popFactor" min="0" max="1" step="0.1" value="0.3">
                     </div>
 
-                    <!-- 3. Exigence -->
+                    <!-- 3. Focus on Favorites -->
                     <div class="setting-item">
                         <div class="label-with-icon">
-                            <span>Exigence</span>
+                            <span>Focus on Favorites</span>
                             <div class="info-icon">i
-                                <span class="tooltip-text">Sensibilité aux notes : Élevé = Seuls les chefs-d'œuvre comptent.</span>
+                                <span class="tooltip-text">Decide if we should use all the movies you liked, or only your absolute masterpieces to build your profile.</span>
                             </div>
-                            <span id="ratingPowerVal" style="margin-left: auto; color: var(--accent-color);">2.0</span>
+                            <span id="ratingPowerVal" style="margin-left: auto; color: var(--accent-color);">4.0</span>
                         </div>
-                        <input type="range" id="ratingPower" min="1" max="5" step="0.1" value="2.0">
+                        <input type="range" id="ratingPower" min="1" max="5" step="0.1" value="4.0">
                     </div>
 
-                    <!-- 4. Quantité -->
+                    <!-- 4. Taste Complexity -->
+                    <div class="setting-item">
+                        <div class="label-with-icon">
+                            <span>Taste Complexity</span>
+                            <div class="info-icon">i
+                                <span class="tooltip-text">Preserves your distinct interests separately (e.g., liking both Horror and Romance) instead of blending them into a neutral average.</span>
+                            </div>
+                            <span id="tasteComplexityVal" style="margin-left: auto; color: var(--accent-color);">Multi-Faceted</span>
+                        </div>
+                        <input type="range" id="tasteComplexity" min="0" max="1" step="1" value="1">
+                    </div>
+
+                    <!-- 5. Quantité -->
                     <div class="setting-item">
                         <div class="label-with-icon">
                             <span>Quantité</span>
@@ -74,22 +94,12 @@
                         <input type="range" id="recCount" min="1" max="100" step="1" value="10">
                     </div>
 
-                    <!-- 5. & 6. Checkboxes Grouped -->
+                    <!-- 6. Checkboxes Grouped -->
                     <div class="settings-checkbox-group">
-                        <div class="setting-item checkbox-item" style="padding: 0;">
-                            <input type="checkbox" id="useNegatives">
-                            <div class="label-with-icon" style="margin: 0;">
-                                <span>Polarisation</span>
-                                <div class="info-icon">i
-                                    <span class="tooltip-text">Si activé, vos mauvaises notes serviront à éviter les films similaires.</span>
-                                </div>
-                            </div>
-                        </div>
-
                         <div class="setting-item checkbox-item" style="padding: 0;">
                             <input type="checkbox" id="excludeWatchlist">
                             <div class="label-with-icon" style="margin: 0;">
-                                <span>Nouveauté</span>
+                                <span>Exclude watchlist</span>
                                 <div class="info-icon">i
                                     <span class="tooltip-text">Exclut les films déjà présents dans votre Watchlist.</span>
                                 </div>
@@ -108,14 +118,230 @@
 
                 <div id="loader" class="hidden">
                     <div class="spinner"></div>
-                    <p>Analyse du graphe en cours...</p>
+                    <p>Trying to find the best matches for you...</p>
                 </div>
 
                 <div id="recommendationsList" class="movie-grid">
                     <!-- Les films s'afficheront ici -->
                 </div>
             </section>
-        </main>
+            </main>
+        </div>
+
+        <div id="how-it-works" class="hidden how-container">
+            <section class="how-content">
+                <h1>How does it work?</h1>
+        
+                <p>The algorithm behind this website is based on <strong>LightGCN</strong> (Light Graph Convolutional Network), which is basically a massive graph connecting users and films. When you enter your username, the site retrieves the films you liked, compares them with the ones in the graph, and tries to find the best recommendations for you.</p>
+        
+                <h2>Step 1: The data</h2>
+        
+                <p>To create a graph like this, the first thing you need is data. To make the graph as accurate as possible, I retrieved data from <strong>Letterboxd</strong> and started with the following dataset (accessible on HuggingFace):</p>
+        
+                <div class="table-wrapper">
+                    <table class="data-table">
+                        <tr>
+                            <td><strong>Number of users:</strong></td>
+                            <td><strong>6,524</strong></td>
+                        </tr>
+                        <tr>
+                            <td>Number of movies:</td>
+                            <td>316,488</td>
+                        </tr>
+                        <tr>
+                            <td>Number of evaluations:</td>
+                            <td>11,893,055</td>
+                        </tr>
+                        <tr>
+                            <td>Average grade:</td>
+                            <td>3.28</td>
+                        </tr>
+                    </table>
+                </div>
+        
+                <p>This was the raw data. It was comprehensive, but it needed to be cleaned to be more representative. These are the <strong>criteria</strong> I followed:</p>
+        
+                <ul>
+                    <li>A film needed a minimum of 20 unique reviews.</li>
+                    <li>A user needed to have watched at least 200 films.</li>
+                    <li>A user needed to have a difference of at least 1 star between their 25% lowest-rated films and their 75% highest-rated films <em>(because a user who rates all films 5 stars provides no useful information)</em>.</li>
+                    <li>Since the graph we are constructing does not use "weights" on its edges <em>(a film rated 0.5 creates the same connection as a film rated 5)</em>, we only kept each user's top 5% rated films.</li>
+                </ul>
+        
+                <p>With these changes, the dataset dropped to the following numbers:</p>
+        
+                <div class="table-wrapper">
+                    <table class="data-table">
+                        <tr>
+                            <td><strong>Number of users:</strong></td>
+                            <td><strong>6,259</strong></td>
+                        </tr>
+                        <tr>
+                            <td>Number of movies:</td>
+                            <td>10,624</td>
+                        </tr>
+                        <tr>
+                            <td>Number of evaluations:</td>
+                            <td>1,023,747</td>
+                        </tr>
+                        <tr>
+                            <td>Average grade:</td>
+                            <td>4.83</td>
+                        </tr>
+                    </table>
+                </div>
+        
+                <h2>Step 2: The graph</h2>
+        
+                <p>The graph we are constructing is a <strong>bipartite graph</strong>: it has <strong>users</strong> on one side, <strong>films</strong> on the other, and edges connecting them, representing a positive interaction (high rating) between a user and a film.</p>
+        
+                <figure>
+                    <img src="data/graph_web.png" alt="Bipartite Graph Example" class="content-image">
+                    <figcaption>This is an exemple of a simple bipartie graph with users and films.</figcaption>
+                </figure>
+        
+                <h3>Step 2.1: Initialization of the graph</h3>
+        
+                <p>Now that we have our nodes and edges, we need to give them meaning. To do that, we assign a vector to each node (both films and users): a sequence of numbers (128 in this case) where each number represents a latent feature for the computer.</p>
+        
+                <p>For example:</p>
+        
+                <div class="math-block">
+                    $$ \text{Titouan} : [0.01, -0.05, 0.007, \dots] $$
+                    $$ \text{City of God} : [-0.02, 0.04, -0.01, \dots] $$
+                </div>
+        
+                <p>All vectors are initialized with random numbers (following a Gaussian distribution) at the first iteration. We don't use zeros because we don't want everyone to be identical: with random numbers, every person and film starts as unique.</p>
+        
+                <h3>Step 2.2: The training</h3>
+        
+                <h4>2.2.1: The layers</h4>
+        
+                <p>Now our graph is going to try to "see" the connections. For that, we use a specific number of <strong>layers</strong> (here, <strong>3</strong>). At each step (\(0\) to \(3\)), we update the value of our vector using the following formula:</p>
+        
+                <div class="math-block">
+                    $$ e_{u}^{(k+1)} = \sum_{i \in \text{Neighbors}(u)} \frac{1}{\sqrt{ |\text{Neighbors}(u)| \cdot |\text{Neighbors}(i)| }} e_{i}^{(k)} $$
+                </div>
+        
+                <p>(This simply means we are averaging the neighbors of our vector—the nodes linked to it by an edge).</p>
+        
+                <p>Here, if \(e\) is a person (and not a film), \(\text{Neighbors}(u)\) are the films that this user has seen, and \(\text{Neighbors}(i)\) represents the number of people who have seen that specific movie.</p>
+        
+                <p>The operation \( \frac{1}{\sqrt{ |\text{Neighbors}(u)| \cdot |\text{Neighbors}(i)| }} \) acts as a normalization factor: it means that a film seen by the user and only 10 other people is far more important for determining the user's taste than a blockbuster seen by 100 people.</p>
+        
+                <p>Conversely, if \(e\) is a movie, then \(\text{Neighbors}(u)\) is the number of users who have seen movie \(e\), and \(\text{Neighbors}(i)\) is the number of movies that specific user has seen.</p>
+        
+                <p>So for layer \(k\), this is equivalent to:</p>
+        
+                <div class="math-block">
+                    $$ E^{(k+1)} = \text{MeanNeighbors}(E^{(k)}) $$
+                </div>
+        
+                <p>Once we have our 4 states (0, 1, 2, 3), we calculate the final value of our Node \(E\):</p>
+        
+                <div class="math-block">
+                    $$ E_{final} = \frac{1}{4}(E^{(0)} + E^{(1)} + E^{(2)} + E^{(3)}) $$
+                </div>
+        
+                <p>Which semantically means:</p>
+        
+                <div class="math-block">
+                    $$ E_{final} = \frac{1}{4}(\text{Me} + \text{My Movies} + \text{People like me} + \text{Their Movies}) $$
+                </div>
+        
+                <p><strong>N.B</strong>: This applies to a <em>"User"</em> node. For a <em>"Movie"</em> node, the logic is symmetrical:</p>
+        
+                <div class="math-block">
+                    $$ E_{final} = \frac{1}{4}(\text{The Movie} + \text{Its Audience} + \text{Similar Movies} + \text{Their Audience}) $$
+                </div>
+        
+                <h4>2.2.2: The iterations</h4>
+        
+                <p>Now that we see how the graph gives meaning to its vectors for one pass of 3 layers, we can look at the Training loop. The model for this website was trained with the following hyperparameters: \(\text{epochs} = 100\), \(\text{batch\_size} = 4096\), and \(\text{learning\_rate} = 0.001\).</p>
+        
+                <p>This means that for 100 iterations, the model computed the 3 layers and checked if the predicted score was correct:</p>
+        
+                <div class="math-block">
+                    $$ \text{Score} = \text{Vector}_{\text{Titouan}} \cdot \text{Vector}_{\text{City of God}} $$
+                </div>
+        
+                <p>Here, the target score should be \(1.0\) (a match). However, at the beginning, values are random, so the predicted score might be something like \(0.2\).</p>
+        
+                <p>In this case, the algorithm adjusts the values of \(E^{(0)}\) and its neighbors so the final score gets closer to \(1.0\).</p>
+        
+                <p>At the end of training, we have a list of nodes (\(|\text{users}| + |\text{films}|\)), where each is a vector of 128 real numbers. Each number has a meaning automatically determined by the computer: maybe index 99 represents "dark eastern European film", and index 56 represents "Christmas movies".</p>
+        
+                <h2>Step 3: The predictions</h2>
+        
+                <p>Theoretically, to get predictions for a new user, we would need to add them to the graph and retrain the model. However, this is impossible to do in real-time inside a browser. Instead, we use an inference method: we take the user's favorite films (e.g., their top 5% rated films) and use them to construct a user vector on the fly.</p>
+        
+                <h3>Step 3.1: The parameters</h3>
+        
+                <p>To give the user control over the prediction method, we implemented variables that change how the calculation is performed. In the following sections, we use \(v_{i}\) to represent the vector of a film \(i\) liked by the user.</p>
+        
+                <h4>3.1.1: The <strong>rating power</strong> \(p\)</h4>
+        
+                <p>When we select the user's top films, they might have different ratings (e.g., 4, 4.5, or 5 stars). We want a 5-star film to weigh more than a 4-star film. To do this, we weight the vector \(v_{i}\) by \(W_{rating}\):</p>
+        
+                <div class="math-block">
+                    $$ W_{rating} = \left( \frac{\text{Rating}}{5.0} \right)^p $$
+                </div>
+        
+                <p>If \(p=1\), the weight is linear (a 2.5 is half of a 5). If \(p=3\), the weight is cubic (a 2.5 is worth 8 times less than a 5), prioritizing films the user truly loved.</p>
+        
+                <h4>3.1.2: The rarity power \(\alpha\)</h4>
+        
+                <p>Some movies are far more represented than others (e.g., <em>Parasite</em>, <em>La La Land</em>). These tend to dominate recommendations by default because they are mathematically "bigger". To counterbalance this, we introduce a parameter \(\alpha\) to calculate a rarity weight:</p>
+        
+                <div class="math-block">
+                    $$ W_{rarity} = \frac{1}{\|v_{i}\|^\alpha} $$
+                </div>
+        
+                <p>The total weight applied to a film vector becomes \(W_i = W_{rating} \times W_{rarity}\).</p>
+        
+                <p>If \(\alpha = 0\), the influence remains standard. The higher \(\alpha\) is, the more we penalize famous films, allowing niche films to have a stronger impact on the user's profile.</p>
+        
+                <h4>3.1.3: The aggregation</h4>
+        
+                <p>To calculate the final user vector \(U\) from their liked films, we have two methods:</p>
+        
+                <p><strong>Method A: Average</strong></p>
+        
+                <div class="math-block">
+                    $$ U[d] = \frac{1}{N}\sum v_{i}[d] $$
+                </div>
+        
+                <p>Where \(U[d]\) is the value of dimension \(d\) and \(N\) is the number of movies.</p>
+        
+                <p>The problem with a simple average is that it dilutes personality: if one film has a high value for "Happy" and another has a low value, the average suggests you like "Neutral" movies.</p>
+        
+                <p><strong>Method B: Max Pooling (Our choice)</strong></p>
+        
+                <div class="math-block">
+                    $$ \forall d, \quad U[d] = \max(v_{1}[d], v_{2}[d], \dots, v_{N}[d]) $$
+                </div>
+        
+                <p>With <strong>Max Pooling</strong>, we take the maximum activation for each dimension. This preserves the user's individuality: it understands that you can like <strong>both</strong> extreme violence (from one film) <strong>and</strong> extreme romance (from another), creating a multi-faceted profile.</p>
+        
+                <h3>Step 3.2: The final inference</h3>
+        
+                <p>We now have all the ingredients to predict films the user will likely enjoy:</p>
+        
+                <ul>
+                    <li>\(U\): The computed user vector.</li>
+                    <li>\(V_{target}\): The vectors of all films in the graph (10,624).</li>
+                    <li>\(\beta\): The "pop factor". This ensures the recommended films are not too obscure, unless the user specifically wants that.</li>
+                </ul>
+        
+                <p>The final score for a target film is calculated as:</p>
+        
+                <div class="math-block">
+                    $$ \boxed{ \text{Score} = (U \cdot V_{target} ) \times \|V_{target}\|^\beta } $$
+                </div>
+        
+                <p>We compute this score for all films in the graph and return the top \(n\) results.</p>
+            </section>
+        </div>
     </div>
 
     <script type="module" src="scripts/script.js"></script>

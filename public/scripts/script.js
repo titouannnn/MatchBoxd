@@ -4,6 +4,8 @@ import { TMDB_API_KEY } from './config.js';
 let allRecommendations = [];
 let imageCache = new Map();
 let resizeTimeout;
+let currentUserData = null; // Store fetched data for re-use
+let idMapping = {}; // Store slug -> tmdb_id mapping
 
 // --- UI Helpers ---
 function debounce(func, wait) {
@@ -106,13 +108,24 @@ function shuffle(array) {
     return deck;
 }
 
+async function loadIdMapping() {
+    try {
+        const response = await fetch('data/id_mapping.json');
+        idMapping = await response.json();
+        console.log('ID Mapping loaded:', Object.keys(idMapping).length, 'entries');
+    } catch (e) {
+        console.error('Error loading ID mapping:', e);
+    }
+}
+
 function initBackground() {
     const container = document.getElementById('background-posters');
     if (!container) return;
     container.innerHTML = ''; // Reset pour éviter accumulation
 
     // Configuration
-    const posterWidth = 140; 
+    const isMobile = window.innerWidth < 768;
+    const posterWidth = isMobile ? 80 : 140; 
     const gap = 15;
     const colWidth = posterWidth + gap;
     const screenWidth = window.innerWidth;
@@ -158,12 +171,89 @@ function initBackground() {
     }
 }
 
-async function getMovieImage(title, type = 'poster') {
+async function getMovieImage(slug, title, type = 'poster') {
     try {
-        const response = await fetch(`https://api.themoviedb.org/3/search/movie?api_key=${TMDB_API_KEY}&query=${encodeURIComponent(title)}`);
-        const data = await response.json();
-        if (data.results && data.results.length > 0) {
-            const movie = data.results[0];
+        let movie = null;
+        const tmdbId = idMapping[slug];
+
+        // 1. Try by ID
+        if (tmdbId) {
+            try {
+                const response = await fetch(`https://api.themoviedb.org/3/movie/${tmdbId}?api_key=${TMDB_API_KEY}`);
+                if (response.ok) {
+                    movie = await response.json();
+                }
+            } catch (e) {
+                console.warn(`Failed to fetch by ID for ${slug}:`, e);
+            }
+        }
+
+        // Check if movie is valid (has image)
+        const hasImage = movie && (movie.poster_path || movie.backdrop_path);
+
+        // 2. Fallback to search if (No ID) OR (Fetch Failed) OR (Movie found but has NO image)
+        if (!movie || !hasImage) {
+            console.log(`Fallback to search for ${title} (${slug})`);
+            
+            // Strategy A: Search with provided title (likely contains year)
+            let searchRes = await fetch(`https://api.themoviedb.org/3/search/movie?api_key=${TMDB_API_KEY}&query=${encodeURIComponent(title)}`);
+            let data = await searchRes.json();
+            
+            if (data.results && data.results.length > 0) {
+                movie = data.results[0];
+            }
+
+            // Strategy B: If still no movie, try removing the year from title (if present)
+            // Example: "The Matrix (1999)" -> "The Matrix"
+            if ((!movie || (!movie.poster_path && !movie.backdrop_path)) && title.match(/\(\d{4}\)$/)) {
+                const cleanTitle = title.replace(/\s*\(\d{4}\)$/, '');
+                console.log(`Second fallback: searching for "${cleanTitle}"`);
+                searchRes = await fetch(`https://api.themoviedb.org/3/search/movie?api_key=${TMDB_API_KEY}&query=${encodeURIComponent(cleanTitle)}`);
+                data = await searchRes.json();
+                if (data.results && data.results.length > 0) {
+                    movie = data.results[0];
+                }
+            }
+        }
+
+        // Check if we have a valid movie from TMDB with images
+        const hasTmdbImage = movie && (movie.poster_path || movie.backdrop_path);
+
+        // If NO valid TMDB image found, try Letterboxd Scraping via API (to avoid CORS)
+        if (!hasTmdbImage) {
+            console.log(`⚠️ No TMDB image for ${title}, trying Letterboxd scraping via API...`);
+            try {
+                // Slugify title: "DJ Mehdi: Made in France" -> "dj-mehdi-made-in-france"
+                const lbSlug = title.toLowerCase()
+                    .replace(/:/g, '')
+                    .replace(/'/g, '')
+                    .replace(/[^a-z0-9\s-]/g, '')
+                    .trim()
+                    .replace(/\s+/g, '-');
+
+                // Call our own API endpoint
+                const response = await fetch(`/api/get-movie-image?slug=${lbSlug}`);
+                
+                if (response.ok) {
+                    const data = await response.json();
+                    if (data.image) {
+                        console.log(`✅ Found image via Letterboxd API for ${title}: ${data.image}`);
+                        return {
+                            id: 'lb-' + lbSlug,
+                            backdrop: data.image,
+                            poster: data.image,
+                            overview: "Image retrieved from Letterboxd.",
+                            release_date: null,
+                            logo: null
+                        };
+                    }
+                }
+            } catch (e) {
+                console.warn(`Letterboxd API scraping failed for ${title}:`, e);
+            }
+        }
+
+        if (movie) {
             const result = {
                 id: movie.id,
                 backdrop: movie.backdrop_path ? `https://image.tmdb.org/t/p/w780${movie.backdrop_path}` : null,
@@ -197,6 +287,34 @@ async function getMovieImage(title, type = 'poster') {
 // --- Main Logic ---
 document.addEventListener('DOMContentLoaded', async () => {
     initBackground();
+    loadIdMapping();
+
+    // Navigation Logic
+    const navBtns = document.querySelectorAll('.nav-btn');
+    navBtns.forEach(btn => {
+        btn.addEventListener('click', () => {
+            // Remove active class from all
+            navBtns.forEach(b => b.classList.remove('active'));
+            // Add to clicked
+            btn.classList.add('active');
+
+            // Hide all views
+            document.getElementById('engine-view').classList.add('hidden');
+            document.getElementById('how-it-works').classList.add('hidden');
+
+            // Show target
+            const targetId = btn.dataset.target;
+            document.getElementById(targetId).classList.remove('hidden');
+
+            // Toggle background
+            const bg = document.getElementById('background-posters');
+            if (targetId === 'how-it-works') {
+                bg.style.display = 'none';
+            } else {
+                bg.style.display = 'flex';
+            }
+        });
+    });
     
     // UI Elements
     const fetchBtn = document.getElementById('fetchBtn');
@@ -205,7 +323,7 @@ document.addEventListener('DOMContentLoaded', async () => {
     const popInput = document.getElementById('popFactor');
     const ratingPowerInput = document.getElementById('ratingPower');
     const recCountInput = document.getElementById('recCount');
-    const useNegativesInput = document.getElementById('useNegatives');
+    const tasteComplexityInput = document.getElementById('tasteComplexity');
     const excludeWlInput = document.getElementById('excludeWatchlist');
     
     // Display Elements
@@ -217,16 +335,52 @@ document.addEventListener('DOMContentLoaded', async () => {
     const statsDisplay = document.getElementById('statsDisplay');
 
     // 1. Init Sliders
+    // Helper to get label text
+    const getLabel = (id, val) => {
+        val = parseFloat(val);
+        if (id === 'alpha') {
+            if (val < 1.5) return "Low";
+            if (val > 3.5) return "High";
+            return "Medium";
+        }
+        if (id === 'popFactor') {
+            if (val < 0.3) return "Indie";
+            if (val > 0.7) return "Blockbuster";
+            return "Balanced";
+        }
+        if (id === 'ratingPower') {
+            if (val < 2.0) return "All Likes";
+            if (val > 4.0) return "Masterpieces Only";
+            return "Balanced";
+        }
+        return "";
+    };
+
     // Sync display with actual input values (browser might preserve values on reload)
-    alphaVal.textContent = alphaInput.value;
-    popVal.textContent = popInput.value;
-    ratingPowerVal.textContent = ratingPowerInput.value;
+    const updateDisplay = (input, displayEl, id) => {
+        const val = input.value;
+        const label = getLabel(id, val);
+        displayEl.textContent = label ? `${val} (${label})` : val;
+    };
+
+    updateDisplay(alphaInput, alphaVal, 'alpha');
+    updateDisplay(popInput, popVal, 'popFactor');
+    updateDisplay(ratingPowerInput, ratingPowerVal, 'ratingPower');
     recCountVal.textContent = recCountInput.value;
 
-    alphaInput.addEventListener('input', (e) => alphaVal.textContent = e.target.value);
-    popInput.addEventListener('input', (e) => popVal.textContent = e.target.value);
-    ratingPowerInput.addEventListener('input', (e) => ratingPowerVal.textContent = e.target.value);
+    alphaInput.addEventListener('input', (e) => updateDisplay(e.target, alphaVal, 'alpha'));
+    popInput.addEventListener('input', (e) => updateDisplay(e.target, popVal, 'popFactor'));
+    ratingPowerInput.addEventListener('input', (e) => updateDisplay(e.target, ratingPowerVal, 'ratingPower'));
     recCountInput.addEventListener('input', (e) => recCountVal.textContent = e.target.value);
+    
+    // Taste Complexity Display Update
+    const tasteComplexityVal = document.getElementById('tasteComplexityVal');
+    const updateTasteLabel = () => {
+        tasteComplexityVal.textContent = (tasteComplexityInput.value == 1) ? "Multi-Faceted" : "Average";
+    };
+    tasteComplexityInput.addEventListener('input', updateTasteLabel);
+    // Init label
+    updateTasteLabel();
 
     // 1.5 Init Input Enter Key
     usernameInput.addEventListener('keyup', (e) => {
@@ -246,26 +400,26 @@ document.addEventListener('DOMContentLoaded', async () => {
     }
 
     // 3. Action
-    fetchBtn.addEventListener('click', async () => {
-        const username = usernameInput.value.trim();
-        if (!username) return;
+    async function processAndRecommend() {
+        if (!currentUserData) return;
+
+        const recList = document.getElementById('recommendationsList');
+        const statsDisplay = document.getElementById('statsDisplay');
+        const alphaInput = document.getElementById('alpha');
+        const popInput = document.getElementById('popFactor');
+        const ratingPowerInput = document.getElementById('ratingPower');
+        const recCountInput = document.getElementById('recCount');
+        const tasteComplexityInput = document.getElementById('tasteComplexity');
+        const excludeWlInput = document.getElementById('excludeWatchlist');
 
         toggleLoader(true);
-        updateStatus(`Analyse du profil de ${username}...`);
+        updateStatus("Calcul des recommandations...");
         recList.innerHTML = '';
         statsDisplay.textContent = '';
 
         try {
-            // A. Fetch Data
-            const res = await fetch(`/api/scrape?username=${username}`);
-            const data = await res.json();
-
-            if (!data.films || data.films.length === 0) {
-                throw new Error("Aucun film trouvé ou profil privé.");
-            }
-
             // B. Process Data
-            const ratedFilms = data.films.filter(f => f.rating !== null);
+            const ratedFilms = currentUserData.films.filter(f => f.rating !== null);
             
             if (ratedFilms.length === 0) {
                 throw new Error("Ce profil n'a noté aucun film.");
@@ -288,7 +442,7 @@ document.addEventListener('DOMContentLoaded', async () => {
 
             // Optionnel : Exclure la watchlist
             if (excludeWlInput.checked) {
-                const watchlist = data.films.filter(f => f.username.startsWith('watchlist_'));
+                const watchlist = currentUserData.films.filter(f => f.username.startsWith('watchlist_'));
                 watchlist.forEach(f => excludeTitles.add(f.title));
             }
 
@@ -296,8 +450,14 @@ document.addEventListener('DOMContentLoaded', async () => {
             const alpha = parseFloat(alphaInput.value);
             const popFactor = parseFloat(popInput.value);
             const ratingPower = parseFloat(ratingPowerInput.value);
-            const recCount = parseInt(recCountInput.value, 10);
-            const useNegatives = useNegativesInput.checked;
+            // Slider: 0 = Average (useNegatives=true), 1 = Multi-Faceted (useNegatives=false)
+            // Note: The logic in getRecommendations is: if useNegatives=true -> Average/Sum with negatives.
+            // Wait, let's check getRecommendations again.
+            // "if (useNegatives) ... Somme pondérée ... else ... Max Pooling"
+            // The user wants "Multi-Faceted" (Max Pooling) to be the default/high value.
+            // So if slider is 1 (Multi-Faceted), useNegatives should be FALSE.
+            // If slider is 0 (Average), useNegatives should be TRUE.
+            const useNegatives = (parseInt(tasteComplexityInput.value) === 0);
 
             allRecommendations = getRecommendations(
                 likedMovies, 
@@ -326,10 +486,52 @@ document.addEventListener('DOMContentLoaded', async () => {
 
             await updateGrid();
 
+            // Scroll smooth vers la grille de films une fois chargée
+            recList.scrollIntoView({ behavior: 'smooth', block: 'start' });
+
         } catch (err) {
             toggleLoader(false);
             updateStatus("Erreur : " + err.message, true);
             console.error(err);
+        }
+    }
+
+    fetchBtn.addEventListener('click', async () => {
+        const username = usernameInput.value.trim();
+        if (!username) return;
+
+        toggleLoader(true);
+        
+        // Scroll smooth vers la zone de chargement
+        document.getElementById('results-area').scrollIntoView({ behavior: 'smooth', block: 'start' });
+
+        updateStatus(`Analyse du profil de ${username}...`);
+        recList.innerHTML = '';
+        statsDisplay.textContent = '';
+
+        try {
+            // A. Fetch Data
+            const res = await fetch(`/api/scrape?username=${username}`);
+            const data = await res.json();
+
+            if (!data.films || data.films.length === 0) {
+                throw new Error("Aucun film trouvé ou profil privé.");
+            }
+            
+            currentUserData = data;
+            await processAndRecommend();
+
+        } catch (err) {
+            toggleLoader(false);
+            updateStatus("Erreur : " + err.message, true);
+            console.error(err);
+        }
+    });
+
+    // Watchlist Checkbox Handler
+    excludeWlInput.addEventListener('change', () => {
+        if (currentUserData) {
+            processAndRecommend();
         }
     });
 
@@ -390,7 +592,9 @@ async function updateGrid() {
     }
 
     // Fetch images (with cache)
-    const moviesWithImages = await Promise.all(moviesToDisplay.map(async (slug, index) => {
+    const moviesWithImages = await Promise.all(moviesToDisplay.map(async (item, index) => {
+        const slug = item.slug;
+        const score = item.score;
         const rank = index + 1;
         let type = 'poster'; // Default
         
@@ -404,22 +608,24 @@ async function updateGrid() {
             if (type === 'wide' && !cached.logo) {
                 // Need to fetch logo, refetch
             } else {
-                return { ...cached, slug, rank, type };
+                return { ...cached, slug, rank, type, score };
             }
         }
         
         const title = formatTitle(slug);
-        const imgData = await getMovieImage(title, type);
+        const imgData = await getMovieImage(slug, title, type);
         const data = { title, ...imgData };
         imageCache.set(slug, data);
-        return { ...data, slug, rank, type };
+        return { ...data, slug, rank, type, score };
     }));
 
     recList.innerHTML = ''; // Clear list
 
     // No reordering needed, just display in rank order
     moviesWithImages.forEach((movie) => {
-        const card = document.createElement('div');
+        const card = document.createElement('a');
+        card.href = `https://letterboxd.com/film/${movie.slug}/`;
+        card.target = '_blank';
         
         let bentoClass = 'bento-item';
         if (movie.type === 'wide') {
@@ -451,14 +657,28 @@ async function updateGrid() {
 
         card.innerHTML = `
             ${logoHtml}
+            <div class="match-score">
+                ${movie.score}%
+                <div class="score-tooltip">Score de pertinence basé sur vos goûts</div>
+            </div>
             <div class="movie-content">
                 <div class="rank">#${movie.rank}</div>
                 <div class="movie-info">
                     <div class="movie-title">${movie.title}</div>
-                    <a href="https://letterboxd.com/film/${movie.slug}/" target="_blank" class="lb-link">Letterboxd ↗</a>
                 </div>
             </div>
         `;
+        
+        // Gestion du clic sur le score (Mobile)
+        const badge = card.querySelector('.match-score');
+        badge.addEventListener('click', (e) => {
+            e.preventDefault();
+            e.stopPropagation();
+            badge.classList.toggle('active');
+            // Auto-hide après 3s
+            setTimeout(() => badge.classList.remove('active'), 3000);
+        });
+
         recList.appendChild(card);
     });
 }

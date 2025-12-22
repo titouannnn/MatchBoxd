@@ -181,6 +181,12 @@ export function getRecommendations(likedMovies, excludeMovies, alpha = 3.0, popF
     
     console.timeEnd("⏱️ Calcul Reco");
     
-    // Renvoie les titres originaux (Top 150 pour permettre le choix jusqu'à 100 + marge)
-    return scores.slice(0, 150).map(s => movieData.titles[s.id]);
+    // Renvoie les objets { slug, score }
+    // On normalise le score par rapport au premier (le meilleur) pour avoir un % relatif
+    const maxScore = scores.length > 0 ? scores[0].score : 1;
+
+    return scores.slice(0, 150).map(s => ({
+        slug: movieData.titles[s.id],
+        score: Math.round((s.score / maxScore) * 100) // Score relatif en %
+    }));
 }
