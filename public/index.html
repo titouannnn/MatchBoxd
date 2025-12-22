@@ -1,0 +1,123 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Letterboxd AI Recommender</title>
+    <link rel="stylesheet" href="style.css">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700&display=swap" rel="stylesheet">
+</head>
+<body>
+    <div id="background-posters"></div>
+    <div class="app-container">
+        <header class="hero-section">
+            <h1>Find your next favorite film</h1>
+            <p class="subtitle">Enter your Letterboxd username below</p>
+            
+            <div class="search-wrapper">
+                <input type="text" id="username" class="search-input" placeholder="Entrez votre pseudo Letterboxd..." value="titouannnnnn">
+                <button id="fetchBtn" class="search-btn" aria-label="Lancer l'analyse">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="8"></circle><line x1="21" y1="21" x2="16.65" y2="16.65"></line></svg>
+                </button>
+            </div>
+        </header>
+
+        <main>
+            <!-- Section Configuration -->
+            <section class="config-panel">
+                <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 20px; align-items: end;">
+                    <!-- 1. Rareté -->
+                    <div class="setting-item">
+                        <div class="label-with-icon">
+                            <span>Rareté</span>
+                            <div class="info-icon">i
+                                <span class="tooltip-text">Définit si vous préférez des films de niche (élevé) ou populaires (faible).</span>
+                            </div>
+                            <span id="alphaVal" style="margin-left: auto; color: var(--accent-color);">3.0</span>
+                        </div>
+                        <input type="range" id="alpha" min="0" max="5" step="0.1" value="3.0">
+                    </div>
+
+                    <!-- 2. Mainstream -->
+                    <div class="setting-item">
+                        <div class="label-with-icon">
+                            <span>Mainstream</span>
+                            <div class="info-icon">i
+                                <span class="tooltip-text">Boost les films très connus pour éviter des recommandations trop obscures.</span>
+                            </div>
+                            <span id="popVal" style="margin-left: auto; color: var(--accent-color);">0.4</span>
+                        </div>
+                        <input type="range" id="popFactor" min="0" max="1" step="0.1" value="0.4">
+                    </div>
+
+                    <!-- 3. Exigence -->
+                    <div class="setting-item">
+                        <div class="label-with-icon">
+                            <span>Exigence</span>
+                            <div class="info-icon">i
+                                <span class="tooltip-text">Sensibilité aux notes : Élevé = Seuls les chefs-d'œuvre comptent.</span>
+                            </div>
+                            <span id="ratingPowerVal" style="margin-left: auto; color: var(--accent-color);">2.0</span>
+                        </div>
+                        <input type="range" id="ratingPower" min="1" max="5" step="0.1" value="2.0">
+                    </div>
+
+                    <!-- 4. Quantité -->
+                    <div class="setting-item">
+                        <div class="label-with-icon">
+                            <span>Quantité</span>
+                            <div class="info-icon">i
+                                <span class="tooltip-text">Nombre de films à recommander.</span>
+                            </div>
+                            <span id="recCountVal" style="margin-left: auto; color: var(--accent-color);">10</span>
+                        </div>
+                        <input type="range" id="recCount" min="1" max="100" step="1" value="10">
+                    </div>
+
+                    <!-- 5. & 6. Checkboxes Grouped -->
+                    <div class="settings-checkbox-group">
+                        <div class="setting-item checkbox-item" style="padding: 0;">
+                            <input type="checkbox" id="useNegatives">
+                            <div class="label-with-icon" style="margin: 0;">
+                                <span>Polarisation</span>
+                                <div class="info-icon">i
+                                    <span class="tooltip-text">Si activé, vos mauvaises notes serviront à éviter les films similaires.</span>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="setting-item checkbox-item" style="padding: 0;">
+                            <input type="checkbox" id="excludeWatchlist">
+                            <div class="label-with-icon" style="margin: 0;">
+                                <span>Nouveauté</span>
+                                <div class="info-icon">i
+                                    <span class="tooltip-text">Exclut les films déjà présents dans votre Watchlist.</span>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </section>
+
+            <!-- Section Résultats -->
+            <section id="results-area" class="hidden">
+                <div class="status-bar">
+                    <span id="statusText">Prêt</span>
+                    <div class="stats" id="statsDisplay"></div>
+                </div>
+
+                <div id="loader" class="hidden">
+                    <div class="spinner"></div>
+                    <p>Analyse du graphe en cours...</p>
+                </div>
+
+                <div id="recommendationsList" class="movie-grid">
+                    <!-- Les films s'afficheront ici -->
+                </div>
+            </section>
+        </main>
+    </div>
+
+    <script type="module" src="scripts/script.js"></script>
+</body>
+</html>
