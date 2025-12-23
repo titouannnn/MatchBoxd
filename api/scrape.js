@@ -55,6 +55,8 @@ function parseFilms(html, username, isWatchlist = false) {
 }
 
 export default async function handler(request, response) {
+    const start = performance.now();
+    console.log('[EDGE EXECUTION] Request received for: ' + request.url);
     console.log('[Edge Request] Executing api/scrape');
     // Cache Vercel Edge : 24h (86400s) en cache partagé, revalidation en arrière-plan autorisée
     response.setHeader('Cache-Control', 'public, s-maxage=86400, stale-while-revalidate=43200');
@@ -70,10 +72,12 @@ export default async function handler(request, response) {
         let allFilms = [];
         let watchedCount = 0;
         let watchlistCount = 0;
+        let cpuTime = 0; // Initialize cpuTime
 
         // 1. Films Watched (Page 1)
         const filmsHtml = await getPage(`https://letterboxd.com/${username}/films/`);
         if (filmsHtml) {
+            const tCpuStart = performance.now();
             // Parse Page 1
             const page1Films = parseFilms(filmsHtml, username, false);
             allFilms.push(...page1Films);
@@ -93,6 +97,7 @@ export default async function handler(request, response) {
             } else {
                 watchedCount = page1Films.length;
             }
+            cpuTime += (performance.now() - tCpuStart);
 
             // Generate tasks for remaining pages (72 films per page)
             if (watchedCount > 72) {
@@ -106,6 +111,7 @@ export default async function handler(request, response) {
         // 2. Watchlist (Page 1)
         const watchlistHtml = await getPage(`https://letterboxd.com/${username}/watchlist/`);
         if (watchlistHtml) {
+            const tCpuStart = performance.now();
             // Parse Page 1
             const page1Watchlist = parseFilms(watchlistHtml, username, true);
             allFilms.push(...page1Watchlist);
@@ -123,6 +129,7 @@ export default async function handler(request, response) {
             } else {
                 watchlistCount = page1Watchlist.length;
             }
+            cpuTime += (performance.now() - tCpuStart);
 
             // Generate tasks for remaining pages (28 films per page)
             if (watchlistCount > 28) {
@@ -139,10 +146,19 @@ export default async function handler(request, response) {
             const batch = tasks.slice(i, i + BATCH_SIZE);
             const results = await Promise.all(batch.map(async (task) => {
                 const html = await getPage(task.url);
-                return parseFilms(html, username, task.type === 'watchlist');
+                const tCpuStart = performance.now();
+                const res = parseFilms(html, username, task.type === 'watchlist');
+                cpuTime += (performance.now() - tCpuStart);
+                return res;
             }));
             results.forEach(films => allFilms.push(...films));
         }
+
+        const end = performance.now();
+        const totalDuration = end - start;
+        const netDuration = totalDuration - cpuTime;
+        
+        response.setHeader('Server-Timing', `cpu;dur=${cpuTime.toFixed(2)};desc="Billable CPU", net;dur=${netDuration.toFixed(2)};desc="Network Wait"`);
 
         return response.status(200).json({
             username: username,

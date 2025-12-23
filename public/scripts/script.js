@@ -157,6 +157,7 @@ function shuffle(array) {
 
 async function loadIdMapping() {
     try {
+        console.log('[✅ EXTERNAL FREE] Loading ID Mapping JSON');
         const response = await fetch('data/id_mapping.json');
         idMapping = await response.json();
         console.log('ID Mapping loaded:', Object.keys(idMapping).length, 'entries');
@@ -168,6 +169,11 @@ async function loadIdMapping() {
 function initBackground() {
     const container = document.getElementById('background-posters');
     if (!container) return;
+    
+    // OPTIMIZATION: Use GitHub Raw to save Vercel Bandwidth/Requests
+    // TODO: Replace with your actual username and repo (e.g. titouannnn/MatchBoxd)
+    const GITHUB_REPO_BASE = 'https://raw.githubusercontent.com/titouannnn/MatchBoxd/master/public/data/posters/';
+
     container.innerHTML = ''; // Reset pour éviter accumulation
 
     // Configuration
@@ -210,7 +216,8 @@ function initBackground() {
         const fullList = [...setImages, ...setImages];
         fullList.forEach((posterFile, index) => {
             const img = document.createElement('img');
-            img.src = `data/posters/${posterFile}`;
+            // img.src = `data/posters/${posterFile}`; // OLD (Vercel Bandwidth)
+            img.src = `${GITHUB_REPO_BASE}${posterFile}`; // NEW (GitHub Raw = Free)
             img.className = 'bg-poster';
             img.alt = ""; // Decorative image
             img.width = posterWidth;
@@ -239,6 +246,7 @@ async function getMovieImage(slug, title, type = 'poster') {
         // 1. Try by ID
         if (tmdbId) {
             try {
+                console.log(`[✅ EXTERNAL FREE] Fetching TMDB ID for ${slug}`);
                 const response = await fetch(`https://api.themoviedb.org/3/movie/${tmdbId}?api_key=${TMDB_API_KEY}`);
                 if (response.ok) {
                     movie = await response.json();
@@ -256,6 +264,7 @@ async function getMovieImage(slug, title, type = 'poster') {
             console.log(`Fallback to search for ${title} (${slug})`);
             
             // Strategy A: Search with provided title (likely contains year)
+            console.log(`[✅ EXTERNAL FREE] Searching TMDB for ${title}`);
             let searchRes = await fetch(`https://api.themoviedb.org/3/search/movie?api_key=${TMDB_API_KEY}&query=${encodeURIComponent(title)}`);
             let data = await searchRes.json();
             
@@ -280,6 +289,7 @@ async function getMovieImage(slug, title, type = 'poster') {
         const hasTmdbImage = movie && (movie.poster_path || movie.backdrop_path);
 
         // If NO valid TMDB image found, try Letterboxd Scraping via API (to avoid CORS)
+        /* DISABLED TO SAVE EDGE REQUESTS
         if (!hasTmdbImage) {
             console.log(`⚠️ No TMDB image for ${title}, trying Letterboxd scraping via API...`);
             try {
@@ -292,6 +302,7 @@ async function getMovieImage(slug, title, type = 'poster') {
                     .replace(/\s+/g, '-');
 
                 // Call our own API endpoint
+                console.log('[Edge Request] Fetching single image from /api/get-movie-image');
                 const response = await fetch(`/api/get-movie-image?slug=${lbSlug}`);
                 
                 if (response.ok) {
@@ -312,6 +323,7 @@ async function getMovieImage(slug, title, type = 'poster') {
                 console.warn(`Letterboxd API scraping failed for ${title}:`, e);
             }
         }
+        */
 
         if (movie) {
             const result = {
@@ -571,6 +583,11 @@ document.addEventListener('DOMContentLoaded', async () => {
         const username = usernameInput.value.trim();
         if (!username) return;
 
+        // Prevent double submission
+        if (fetchBtn.disabled) return;
+        fetchBtn.disabled = true;
+        usernameInput.disabled = true;
+
         toggleLoader(true);
         
         // Scroll smooth vers la zone de chargement
@@ -585,7 +602,24 @@ document.addEventListener('DOMContentLoaded', async () => {
             let data = getFromCache('user_' + username, USER_CACHE_DURATION);
             
             if (!data) {
+                console.log('[Edge Request] Fetching user data from /api/scrape');
+                console.log('[💸 VERCEL BILLING] Calling /api/scrape');
                 const res = await fetch(`/api/scrape?username=${username}`);
+                
+                // Monitor CPU Usage from Server-Timing header
+                const serverTiming = res.headers.get('Server-Timing');
+                if (serverTiming) {
+                    const cpuMatch = serverTiming.match(/cpu;dur=([\d.]+)/);
+                    const netMatch = serverTiming.match(/net;dur=([\d.]+)/);
+                    
+                    if (cpuMatch) {
+                        console.log(`%c[⏱️ BILLABLE CPU] ${cpuMatch[1]}ms`, 'color: orange; font-weight: bold;');
+                    }
+                    if (netMatch) {
+                        console.log(`%c[🌐 NETWORK WAIT] ${netMatch[1]}ms`, 'color: #4aa; font-weight: bold;');
+                    }
+                }
+
                 data = await res.json();
                 
                 if (data.films && data.films.length > 0) {
@@ -606,6 +640,9 @@ document.addEventListener('DOMContentLoaded', async () => {
             toggleLoader(false);
             updateStatus("Error: " + err.message, true);
             console.error(err);
+        } finally {
+            fetchBtn.disabled = false;
+            usernameInput.disabled = false;
         }
     });
 
@@ -700,6 +737,8 @@ async function updateGrid() {
             const batch = slugsToFetch.slice(i, i + BATCH_SIZE);
             const slugsParam = batch.join(',');
             try {
+                console.log('[Edge Request] Fetching batch images from /api/get-movie-image');
+                console.log('[💸 VERCEL BILLING] Calling /api/get-movie-image (batch)');
                 const res = await fetch(`/api/get-movie-image?slugs=${encodeURIComponent(slugsParam)}`);
                 if (res.ok) {
                     const results = await res.json();

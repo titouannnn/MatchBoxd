@@ -31,6 +31,7 @@ async function fetchImage(slug) {
 }
 
 export default async function handler(request, response) {
+    console.log('[EDGE EXECUTION] Request received for: ' + request.url);
     console.log('[Edge Request] Executing api/get-movie-image');
     // Cache Vercel Edge : 7 jours (604800s), car les images de films changent rarement
     response.setHeader('Cache-Control', 'public, s-maxage=604800, stale-while-revalidate=86400');

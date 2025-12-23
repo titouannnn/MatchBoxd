@@ -13,7 +13,9 @@ export async function loadModel() {
 
         // 2. Charger les vecteurs binaires (lourd mais compact)
         // Utilisation de cache: 'force-cache' pour dire au navigateur de le garder le plus longtemps possible
-        const binRes = await fetch('./data/model_vectors.bin', { cache: 'force-cache' });
+        // OPTIMIZATION: Load from GitHub Raw to save Vercel Bandwidth
+        const GITHUB_RAW_BASE = 'https://raw.githubusercontent.com/titouannnn/MatchBoxd/master/public/data/';
+        const binRes = await fetch(GITHUB_RAW_BASE + 'model_vectors.bin', { cache: 'force-cache' });
         if (!binRes.ok) throw new Error("Erreur HTTP Bin " + binRes.status);
         const buffer = await binRes.arrayBuffer();
         
