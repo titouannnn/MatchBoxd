@@ -62,13 +62,14 @@
             <main>
                 <!-- Section Configuration -->
                 <section class="config-panel">
-                <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 20px; align-items: end;">
+                <div class="settings-grid-container">
                     <!-- 2. Mainstream Factor -->
                     <div class="setting-item">
                         <div class="label-with-icon">
                             <label for="popFactor">Mainstream Factor</label>
-                            <div class="info-icon">i
-                                <span class="tooltip-text">Controls whether you prefer seeing famous hits or discovering obscure hidden gems in your results.</span>
+                            <div class="info-icon">
+                                <svg xmlns="http://www.w3.org/2000/svg" width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><path d="M9.09 9a3 3 0 0 1 5.83 1c0 2-3 3-3 3"></path><line x1="12" y1="17" x2="12.01" y2="17"></line></svg>
+                                <span class="tooltip-text">Controls whether you prefer seeing famous hits or discovering hidden gems in your results.</span>
                             </div>
                             <span id="popVal" style="margin-left: auto; color: var(--accent-color);">0.5</span>
                         </div>
@@ -79,8 +80,9 @@
                     <div class="setting-item">
                         <div class="label-with-icon">
                             <label for="ratingPower">Focus on Favorites</label>
-                            <div class="info-icon">i
-                                <span class="tooltip-text">Decide if we should use all the movies you liked, or only your absolute masterpieces to build your profile.</span>
+                            <div class="info-icon">
+                                <svg xmlns="http://www.w3.org/2000/svg" width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><path d="M9.09 9a3 3 0 0 1 5.83 1c0 2-3 3-3 3"></path><line x1="12" y1="17" x2="12.01" y2="17"></line></svg>
+                                <span class="tooltip-text">Decide if we should use all the movies you liked, or only the ones with the highest ratings.</span>
                             </div>
                             <span id="ratingPowerVal" style="margin-left: auto; color: var(--accent-color);">4.0</span>
                         </div>
@@ -91,9 +93,7 @@
                     <div class="setting-item">
                         <div class="label-with-icon">
                             <label for="recCount">Quantity</label>
-                            <div class="info-icon">i
-                                <span class="tooltip-text">Number of films to recommend.</span>
-                            </div>
+                            
                             <span id="recCountVal" style="margin-left: auto; color: var(--accent-color);">30</span>
                         </div>
                         <input type="range" id="recCount" min="1" max="100" step="1" value="30" aria-labelledby="recCountVal">
@@ -105,9 +105,7 @@
                             <input type="checkbox" id="excludeWatchlist">
                             <div class="label-with-icon" style="margin: 0;">
                                 <label for="excludeWatchlist">Exclude watchlist</label>
-                                <div class="info-icon">i
-                                    <span class="tooltip-text">Excludes films already in your Watchlist.</span>
-                                </div>
+                                
                             </div>
                         </div>
                     </div>

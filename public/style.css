@@ -256,15 +256,22 @@ body {
     display: inline-flex;
     align-items: center;
     justify-content: center;
-    width: 18px;
-    height: 18px;
+    width: 22px; /* Agrandissement pour une meilleure lisibilité (Guidelines: ~20-24px) */
+    height: 22px;
     border-radius: 50%;
-    background: rgba(255, 255, 255, 0.1);
+    background: rgba(255, 255, 255, 0.15); /* Contraste légèrement augmenté */
     color: var(--text-color);
-    font-size: 12px;
     cursor: help;
     position: relative;
-    transition: all 0.2s;
+    transition: all 0.2s cubic-bezier(0.25, 0.8, 0.25, 1);
+    flex-shrink: 0;
+}
+
+.info-icon svg {
+    width: 12px; /* Taille de l'icône ajustée */
+    height: 12px;
+    stroke-width: 2.5; /* Trait un peu plus épais pour la lisibilité */
+    display: block; /* Évite les décalages liés à la ligne de base du texte */
 }
 
 .info-icon:hover {
@@ -752,13 +759,31 @@ input[type="range"] {
     grid-row: span 1;
 }
 
+.settings-grid-container {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+    gap: 20px;
+    align-items: end;
+}
+
 .settings-checkbox-group {
     display: flex;
     flex-direction: row;
     gap: 20px;
     align-items: center;
     height: 100%;
-    grid-column: span 2; /* Prend 2 colonnes sur PC pour avoir de la place */
+}
+
+@media (min-width: 769px) {
+    .settings-grid-container {
+        grid-template-columns: repeat(3, 1fr);
+    }
+
+    .settings-checkbox-group {
+        grid-column: 1 / -1;
+        justify-content: center;
+        margin-top: 10px;
+    }
 }
 
 @media (max-width: 768px) {
