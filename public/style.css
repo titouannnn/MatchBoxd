@@ -943,6 +943,16 @@ input[type="range"] {
     color: #e0e0e0;
 }
 
+.how-content a {
+    color: var(--accent-color);
+    text-decoration: underline;
+    transition: color 0.2s;
+}
+
+.how-content a:hover {
+    color: var(--accent-hover);
+}
+
 .how-content strong {
     color: #e0e0e0;
     font-weight: 600;
