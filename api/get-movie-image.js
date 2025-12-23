@@ -30,6 +30,7 @@ async function fetchImage(slug) {
 }
 
 export default async function handler(request, response) {
+    console.log('[Edge Request] Executing api/get-movie-image');
     // Cache Vercel Edge : 7 jours (604800s), car les images de films changent rarement
     response.setHeader('Cache-Control', 'public, s-maxage=604800, stale-while-revalidate=86400');
 
@@ -38,14 +39,20 @@ export default async function handler(request, response) {
     // Mode Batch
     if (slugs) {
         const slugList = slugs.split(',').map(s => s.trim()).filter(s => s);
-        // Limite de sécurité pour éviter le timeout Vercel (max 10 en parallèle)
-        const limitedList = slugList.slice(0, 10); 
+        // Augmentation de la limite à 50 pour réduire le nombre de requêtes (Edge Requests)
+        // On traite par paquets de 5 en parallèle pour éviter le Rate Limiting de Letterboxd
+        const limitedList = slugList.slice(0, 50); 
         
         const results = {};
-        await Promise.all(limitedList.map(async (s) => {
-            const img = await fetchImage(s);
-            if (img) results[s] = img;
-        }));
+        const CHUNK_SIZE = 5;
+        
+        for (let i = 0; i < limitedList.length; i += CHUNK_SIZE) {
+            const chunk = limitedList.slice(i, i + CHUNK_SIZE);
+            await Promise.all(chunk.map(async (s) => {
+                const img = await fetchImage(s);
+                if (img) results[s] = img;
+            }));
+        }
         
         return response.status(200).json(results);
     }

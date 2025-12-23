@@ -7,6 +7,48 @@ let resizeTimeout;
 let currentUserData = null; // Store fetched data for re-use
 let idMapping = {}; // Store slug -> tmdb_id mapping
 
+// --- LocalStorage Helpers ---
+const CACHE_VERSION = 'v1';
+const USER_CACHE_DURATION = 1000 * 60 * 60 * 24; // 24 hours
+
+function saveToCache(key, data) {
+    try {
+        const payload = {
+            timestamp: Date.now(),
+            version: CACHE_VERSION,
+            data: data
+        };
+        localStorage.setItem(key, JSON.stringify(payload));
+    } catch (e) {
+        console.warn("LocalStorage full or disabled", e);
+    }
+}
+
+function getFromCache(key, maxAge = null) {
+    try {
+        const item = localStorage.getItem(key);
+        if (!item) return null;
+        
+        const payload = JSON.parse(item);
+        if (payload.version !== CACHE_VERSION) return null;
+        
+        if (maxAge && (Date.now() - payload.timestamp > maxAge)) {
+            localStorage.removeItem(key);
+            return null;
+        }
+        
+        return payload.data;
+    } catch (e) {
+        return null;
+    }
+}
+
+// Init Image Cache from Storage
+const cachedImages = getFromCache('img_cache');
+if (cachedImages) {
+    imageCache = new Map(Object.entries(cachedImages));
+}
+
 // --- UI Helpers ---
 function debounce(func, wait) {
     let timeout;
@@ -19,6 +61,11 @@ function debounce(func, wait) {
         timeout = setTimeout(later, wait);
     };
 }
+
+// Debounced Save for Image Cache
+const saveImageCache = debounce(() => {
+    saveToCache('img_cache', Object.fromEntries(imageCache));
+}, 2000);
 
 function updateStatus(msg, isError = false) {
     const el = document.getElementById('statusText');
@@ -348,14 +395,12 @@ document.addEventListener('DOMContentLoaded', async () => {
     usernameInput.placeholder = `ex: ${randomExample}`;
     usernameInput.value = ''; // Ensure empty to show placeholder
 
-    const alphaInput = document.getElementById('alpha');
     const popInput = document.getElementById('popFactor');
     const ratingPowerInput = document.getElementById('ratingPower');
     const recCountInput = document.getElementById('recCount');
     const excludeWlInput = document.getElementById('excludeWatchlist');
     
     // Display Elements
-    const alphaVal = document.getElementById('alphaVal');
     const popVal = document.getElementById('popVal');
     const ratingPowerVal = document.getElementById('ratingPowerVal');
     const recCountVal = document.getElementById('recCountVal');
@@ -366,11 +411,6 @@ document.addEventListener('DOMContentLoaded', async () => {
     // Helper to get label text
     const getLabel = (id, val) => {
         val = parseFloat(val);
-        if (id === 'alpha') {
-            if (val < 1.5) return "Low";
-            if (val > 3.5) return "High";
-            return "Medium";
-        }
         if (id === 'popFactor') {
             if (val < 0.3) return "Indie";
             if (val > 0.7) return "Blockbuster";
@@ -391,7 +431,6 @@ document.addEventListener('DOMContentLoaded', async () => {
         displayEl.textContent = label ? `${val} (${label})` : val;
     };
 
-    updateDisplay(alphaInput, alphaVal, 'alpha');
     updateDisplay(popInput, popVal, 'popFactor');
     updateDisplay(ratingPowerInput, ratingPowerVal, 'ratingPower');
     
@@ -399,7 +438,6 @@ document.addEventListener('DOMContentLoaded', async () => {
     recCountInput.value = 30;
     recCountVal.textContent = recCountInput.value;
 
-    alphaInput.addEventListener('input', (e) => updateDisplay(e.target, alphaVal, 'alpha'));
     popInput.addEventListener('input', (e) => updateDisplay(e.target, popVal, 'popFactor'));
     ratingPowerInput.addEventListener('input', (e) => updateDisplay(e.target, ratingPowerVal, 'ratingPower'));
     recCountInput.addEventListener('input', (e) => recCountVal.textContent = e.target.value);
@@ -427,7 +465,6 @@ document.addEventListener('DOMContentLoaded', async () => {
 
         const recList = document.getElementById('recommendationsList');
         const statsDisplay = document.getElementById('statsDisplay');
-        const alphaInput = document.getElementById('alpha');
         const popInput = document.getElementById('popFactor');
         const ratingPowerInput = document.getElementById('ratingPower');
         const recCountInput = document.getElementById('recCount');
@@ -472,14 +509,7 @@ document.addEventListener('DOMContentLoaded', async () => {
             // Toujours exclure ce qu'on a déjà vu (noté ou pas)
             watchedFilms.forEach(f => excludeTitles.add(f.title));
 
-            // Optionnel : Exclure la watchlist
-            if (excludeWlInput.checked) {
-                const watchlist = currentUserData.films.filter(f => f.username.startsWith('watchlist_'));
-                watchlist.forEach(f => excludeTitles.add(f.title));
-            }
-
             // C. Run Algo
-            const alpha = parseFloat(alphaInput.value);
             
             // Remapping popFactor to allow negative values (penalize popularity)
             // Input 0..1 -> Output -0.2..1
@@ -487,6 +517,11 @@ document.addEventListener('DOMContentLoaded', async () => {
             // 1 -> 1 (Strong boost for popular films)
             const rawPop = parseFloat(popInput.value);
             const popFactor = (rawPop * 1.2) - 0.2;
+
+            // Alpha (Niche Focus) is now linearly derived from Mainstream Factor
+            // High Mainstream (1.0) -> Low Alpha (0.0)
+            // Low Mainstream (0.0) -> High Alpha (5.0)
+            const alpha = 5.0 * (1.0 - rawPop);
 
             const ratingPower = parseFloat(ratingPowerInput.value);
             
@@ -546,9 +581,19 @@ document.addEventListener('DOMContentLoaded', async () => {
         statsDisplay.textContent = '';
 
         try {
-            // A. Fetch Data
-            const res = await fetch(`/api/scrape?username=${username}`);
-            const data = await res.json();
+            // A. Fetch Data (with Cache)
+            let data = getFromCache('user_' + username, USER_CACHE_DURATION);
+            
+            if (!data) {
+                const res = await fetch(`/api/scrape?username=${username}`);
+                data = await res.json();
+                
+                if (data.films && data.films.length > 0) {
+                    saveToCache('user_' + username, data);
+                }
+            } else {
+                console.log("Using cached user data");
+            }
 
             if (!data.films || data.films.length === 0) {
                 throw new Error("No films found or private profile.");
@@ -566,8 +611,8 @@ document.addEventListener('DOMContentLoaded', async () => {
 
     // Watchlist Checkbox Handler
     excludeWlInput.addEventListener('change', () => {
-        if (currentUserData) {
-            processAndRecommend();
+        if (allRecommendations.length > 0) {
+            updateGrid();
         }
     });
 
@@ -592,17 +637,29 @@ document.addEventListener('DOMContentLoaded', async () => {
 async function updateGrid() {
     const recList = document.getElementById('recommendationsList');
     const recCountInput = document.getElementById('recCount');
+    const excludeWlInput = document.getElementById('excludeWatchlist');
     
     // Get col count (approximate if display:none, but here it should be visible)
     const gridStyle = window.getComputedStyle(recList);
     const colCount = gridStyle.gridTemplateColumns.split(' ').length;
+
+    let displayList = allRecommendations;
+
+    if (excludeWlInput && excludeWlInput.checked && currentUserData) {
+        const watchlistSlugs = new Set(
+            currentUserData.films
+                .filter(f => f.username.startsWith('watchlist_'))
+                .map(f => f.title)
+        );
+        displayList = allRecommendations.filter(m => !watchlistSlugs.has(m.slug));
+    }
     
     let count = parseInt(recCountInput.value, 10);
     
     // Cap at max available
-    if (count > allRecommendations.length) count = allRecommendations.length;
+    if (count > displayList.length) count = displayList.length;
     
-    const moviesToDisplay = allRecommendations.slice(0, count);
+    const moviesToDisplay = displayList.slice(0, count);
 
     // --- PRE-CALCULATE LAYOUT TO KNOW WHICH IMAGE TYPE TO FETCH ---
     // All items start as 1x1 (1 cell)
@@ -636,9 +693,9 @@ async function updateGrid() {
         }
     });
 
-    // 2. Fetch in batches of 10
+    // 2. Fetch in batches of 50 (Optimized for Vercel Edge Requests)
     if (slugsToFetch.length > 0) {
-        const BATCH_SIZE = 10;
+        const BATCH_SIZE = 50;
         for (let i = 0; i < slugsToFetch.length; i += BATCH_SIZE) {
             const batch = slugsToFetch.slice(i, i + BATCH_SIZE);
             const slugsParam = batch.join(',');
@@ -659,6 +716,7 @@ async function updateGrid() {
                             logo: null 
                         });
                     });
+                    saveImageCache();
                 }
             } catch (e) {
                 console.error("Batch fetch error:", e);
@@ -690,6 +748,7 @@ async function updateGrid() {
         const imgData = await getMovieImage(slug, title, type);
         const data = { title, ...imgData };
         imageCache.set(slug, data);
+        saveImageCache();
         return { ...data, slug, rank, type, score };
     }));
 
@@ -718,11 +777,7 @@ async function updateGrid() {
              bgImage = movie.poster || movie.backdrop;
         }
 
-        if (bgImage) {
-            card.style.backgroundImage = `url('${bgImage}')`;
-            card.style.backgroundSize = 'cover';
-            card.style.backgroundPosition = 'center';
-        }
+        // Note: Background is now applied to .poster-container inside innerHTML
 
         let logoHtml = '';
         if (movie.type === 'wide' && movie.logo) {
@@ -730,17 +785,16 @@ async function updateGrid() {
         }
 
         card.innerHTML = `
-            ${logoHtml}
-            <div class="match-score">
-                ${movie.score}%
-                <div class="score-tooltip">Relevance score based on your tastes</div>
-            </div>
-            <div class="movie-content">
-                <div class="rank">#${movie.rank}</div>
-                <div class="movie-info">
-                    <div class="movie-title">${movie.title}</div>
+            <div class="poster-container" style="background-image: url('${bgImage || ''}'); background-size: cover; background-position: center;">
+                ${logoHtml}
+                <div class="match-score">
+                    ${movie.score}%
+                    <div class="score-tooltip">Relevance score based on your tastes</div>
                 </div>
+                <div class="rank">#${movie.rank}</div>
+                <div class="shine-effect"></div>
             </div>
+            <div class="movie-title">${movie.title}</div>
         `;
         
         // Gestion du clic sur le score (Mobile)

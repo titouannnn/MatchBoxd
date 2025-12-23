@@ -47,6 +47,7 @@ function parseFilms(html, username, isWatchlist = false) {
 }
 
 export default async function handler(request, response) {
+    console.log('[Edge Request] Executing api/scrape');
     // Cache Vercel Edge : 24h (86400s) en cache partagé, revalidation en arrière-plan autorisée
     response.setHeader('Cache-Control', 'public, s-maxage=86400, stale-while-revalidate=43200');
 

@@ -12,7 +12,8 @@ export async function loadModel() {
         const meta = await metaRes.json();
 
         // 2. Charger les vecteurs binaires (lourd mais compact)
-        const binRes = await fetch('./data/model_vectors.bin');
+        // Utilisation de cache: 'force-cache' pour dire au navigateur de le garder le plus longtemps possible
+        const binRes = await fetch('./data/model_vectors.bin', { cache: 'force-cache' });
         if (!binRes.ok) throw new Error("Erreur HTTP Bin " + binRes.status);
         const buffer = await binRes.arrayBuffer();
         
