@@ -1,4 +1,4 @@
-import * as cheerio from 'cheerio';
+// import * as cheerio from 'cheerio'; // Removed to save CPU
 
 const HEADERS = {
     "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36"
@@ -17,33 +17,41 @@ async function getPage(url) {
 
 function parseFilms(html, username, isWatchlist = false) {
     if (!html) return [];
-    const $ = cheerio.load(html);
-    const res = [];
-
-    $('li.griditem').each((_, el) => {
-        const $el = $(el);
-        const $div = $el.find('div[data-film-id]');
-        const $rate = $el.find('.rating');
-
-        if ($div.length) {
-            let rVal = null;
-            if ($rate.length) {
-                const classes = $rate.attr('class').split(/\s+/);
-                const ratingClass = classes.find(c => c.startsWith('rated-'));
-                if (ratingClass) {
-                    rVal = parseInt(ratingClass.split('-')[1], 10) / 2;
-                }
+    const films = [];
+    
+    // Optimized: Use String.split and Regex instead of Cheerio
+    // This avoids building the DOM tree for thousands of elements
+    const items = html.split('<li class="griditem');
+    
+    // Skip the first chunk (header/nav before first item)
+    for (let i = 1; i < items.length; i++) {
+        const chunk = items[i];
+        
+        // Extract ID and Slug
+        const idMatch = chunk.match(/data-film-id="(\d+)"/);
+        const slugMatch = chunk.match(/data-item-slug="([^"]+)"/);
+        
+        if (idMatch && slugMatch) {
+            const movieId = parseInt(idMatch[1], 10);
+            const title = slugMatch[1];
+            let rating = null;
+            
+            // Extract Rating (only if not watchlist, usually)
+            // Look for 'rated-X' class
+            const rateMatch = chunk.match(/rated-(\d+)/);
+            if (rateMatch) {
+                rating = parseInt(rateMatch[1], 10) / 2;
             }
-
-            res.push({
+            
+            films.push({
                 username: isWatchlist ? `watchlist_${username}` : username,
-                movie_id: parseInt($div.attr('data-film-id'), 10),
-                title: $div.attr('data-item-slug'),
-                rating: rVal
+                movie_id: movieId,
+                title: title,
+                rating: rating
             });
         }
-    });
-    return res;
+    }
+    return films;
 }
 
 export default async function handler(request, response) {
@@ -64,20 +72,24 @@ export default async function handler(request, response) {
         let watchlistCount = 0;
 
         // 1. Films Watched (Page 1)
-        // On récupère la première page des films vus pour avoir le total et les premiers films
         const filmsHtml = await getPage(`https://letterboxd.com/${username}/films/`);
         if (filmsHtml) {
-            const $ = cheerio.load(filmsHtml);
-            
             // Parse Page 1
             const page1Films = parseFilms(filmsHtml, username, false);
             allFilms.push(...page1Films);
 
             // Get Count from tooltip (e.g. "153 films")
-            const tooltipText = $('.section-heading .tooltip').attr('title');
-            if (tooltipText) {
-                const match = tooltipText.replace(/,/g, '').replace(/\u00a0/g, ' ').match(/(\d+)/);
-                if (match) watchedCount = parseInt(match[1], 10);
+            // Optimized: Regex instead of Cheerio
+            // <span class="tooltip" title="1,543 films">
+            // Fix: Handle &nbsp; entity in title
+            const tooltipMatch = filmsHtml.match(/class="tooltip"[^>]*title="(.+?)films"/);
+            if (tooltipMatch) {
+                const countStr = tooltipMatch[1]
+                    .replace(/,/g, '')
+                    .replace(/&nbsp;/g, ' ')
+                    .replace(/\u00a0/g, ' ')
+                    .trim();
+                watchedCount = parseInt(countStr, 10);
             } else {
                 watchedCount = page1Films.length;
             }
@@ -94,17 +106,20 @@ export default async function handler(request, response) {
         // 2. Watchlist (Page 1)
         const watchlistHtml = await getPage(`https://letterboxd.com/${username}/watchlist/`);
         if (watchlistHtml) {
-            const $ = cheerio.load(watchlistHtml);
-            
             // Parse Page 1
             const page1Watchlist = parseFilms(watchlistHtml, username, true);
             allFilms.push(...page1Watchlist);
 
             // Get Count
-            const wlEl = $('.js-watchlist-count');
-            if (wlEl.length) {
-                const text = wlEl.text().trim().replace(/,/g, '').replace(/\u00a0/g, ' ');
-                watchlistCount = parseInt(text.split(' ')[0], 10) || 0;
+            // <span class="js-watchlist-count">123</span>
+            const wlMatch = watchlistHtml.match(/class="[^"]*js-watchlist-count[^"]*">([^<]+)</);
+            if (wlMatch) {
+                const countStr = wlMatch[1]
+                    .replace(/,/g, '')
+                    .replace(/&nbsp;/g, ' ')
+                    .replace(/\u00a0/g, ' ')
+                    .trim();
+                watchlistCount = parseInt(countStr, 10) || 0;
             } else {
                 watchlistCount = page1Watchlist.length;
             }
@@ -135,7 +150,7 @@ export default async function handler(request, response) {
             watchlist_count: watchlistCount,
             total_films_retrieved: allFilms.length,
             films: allFilms,
-            source: "Vercel Serverless Function"
+            source: "Vercel Serverless Function (Optimized)"
         });
 
     } catch (error) {

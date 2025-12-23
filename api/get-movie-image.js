@@ -1,4 +1,4 @@
-import * as cheerio from 'cheerio';
+// import * as cheerio from 'cheerio'; // Removed to save CPU
 
 const HEADERS = {
     "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36"
@@ -11,12 +11,13 @@ async function fetchImage(slug) {
         if (res.status !== 200) return null;
         
         const html = await res.text();
-        const $ = cheerio.load(html);
         
-        const scriptContent = $('script[type="application/ld+json"]').html();
-        if (!scriptContent) return null;
+        // Optimized: Use Regex instead of Cheerio to extract JSON-LD
+        // This avoids parsing the entire DOM tree
+        const match = html.match(/<script type="application\/ld\+json">([\s\S]*?)<\/script>/);
+        if (!match) return null;
 
-        const jsonString = scriptContent
+        const jsonString = match[1]
             .replace(/\/\* <!\[CDATA\[ \*\//, '')
             .replace(/\/\* \]\]> \*\//, '')
             .trim();

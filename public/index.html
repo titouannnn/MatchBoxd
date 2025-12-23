@@ -3,10 +3,11 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>MatchBoxd </title>
+    <title>MatchBoxd - Movie Recommendations for Letterboxd</title>
     <meta name="description" content="Discover your next favorite movie with MatchBoxd. Our AI-powered recommendation engine analyzes your Letterboxd profile to find hidden gems and perfect matches.">
     <meta name="keywords" content="letterboxd, movie recommendation, film recommendation, AI, recommender system, what to watch, film suggestion, cinema, movies, matchboxd">
     <meta name="author" content="Titouan">
+    <meta name="google-site-verification" content="5wbd5Gjh6k9do2xlYlyCew0qUz_b4s522H7FHVdG-5A" />
     
     <!-- Open Graph / Facebook -->
     <meta property="og:type" content="website">
@@ -65,37 +66,37 @@
                     <!-- 2. Mainstream Factor -->
                     <div class="setting-item">
                         <div class="label-with-icon">
-                            <span>Mainstream Factor</span>
+                            <label for="popFactor">Mainstream Factor</label>
                             <div class="info-icon">i
                                 <span class="tooltip-text">Controls whether you prefer seeing famous hits or discovering obscure hidden gems in your results.</span>
                             </div>
-                            <span id="popVal" style="margin-left: auto; color: var(--accent-color);">0.3</span>
+                            <span id="popVal" style="margin-left: auto; color: var(--accent-color);">0.5</span>
                         </div>
-                        <input type="range" id="popFactor" min="0" max="1" step="0.1" value="0.3">
+                        <input type="range" id="popFactor" min="0" max="1" step="0.1" value="0.5" aria-labelledby="popVal">
                     </div>
 
                     <!-- 3. Focus on Favorites -->
                     <div class="setting-item">
                         <div class="label-with-icon">
-                            <span>Focus on Favorites</span>
+                            <label for="ratingPower">Focus on Favorites</label>
                             <div class="info-icon">i
                                 <span class="tooltip-text">Decide if we should use all the movies you liked, or only your absolute masterpieces to build your profile.</span>
                             </div>
                             <span id="ratingPowerVal" style="margin-left: auto; color: var(--accent-color);">4.0</span>
                         </div>
-                        <input type="range" id="ratingPower" min="1" max="5" step="0.1" value="4.0">
+                        <input type="range" id="ratingPower" min="1" max="5" step="0.1" value="4.0" aria-labelledby="ratingPowerVal">
                     </div>
 
                     <!-- 5. Quantité -->
                     <div class="setting-item">
                         <div class="label-with-icon">
-                            <span>Quantity</span>
+                            <label for="recCount">Quantity</label>
                             <div class="info-icon">i
                                 <span class="tooltip-text">Number of films to recommend.</span>
                             </div>
                             <span id="recCountVal" style="margin-left: auto; color: var(--accent-color);">30</span>
                         </div>
-                        <input type="range" id="recCount" min="1" max="100" step="1" value="30">
+                        <input type="range" id="recCount" min="1" max="100" step="1" value="30" aria-labelledby="recCountVal">
                     </div>
 
                     <!-- 6. Checkboxes Grouped -->
@@ -103,7 +104,7 @@
                         <div class="setting-item checkbox-item" style="padding: 0;">
                             <input type="checkbox" id="excludeWatchlist">
                             <div class="label-with-icon" style="margin: 0;">
-                                <span>Exclude watchlist</span>
+                                <label for="excludeWatchlist">Exclude watchlist</label>
                                 <div class="info-icon">i
                                     <span class="tooltip-text">Excludes films already in your Watchlist.</span>
                                 </div>
