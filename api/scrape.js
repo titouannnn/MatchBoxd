@@ -55,29 +55,35 @@ function parseFilms(html, username, isWatchlist = false) {
 }
 
 export default async function handler(request, response) {
-    const start = performance.now();
+    // Polyfill for performance.now() in case it's missing in some Vercel environments
+    const now = (typeof performance !== 'undefined' && performance.now) 
+        ? () => performance.now() 
+        : () => Date.now();
+
+    const start = now();
     console.log('[EDGE EXECUTION] Request received for: ' + request.url);
     console.log('[Edge Request] Executing api/scrape');
-    // Cache Vercel Edge : 24h (86400s) en cache partagé, revalidation en arrière-plan autorisée
-    response.setHeader('Cache-Control', 'public, s-maxage=86400, stale-while-revalidate=43200');
-
-    const { username } = request.query;
-
-    if (!username) {
-        return response.status(400).json({ error: 'Username manquant' });
-    }
-
+    
     try {
+        // Cache Vercel Edge : 24h (86400s) en cache partagé, revalidation en arrière-plan autorisée
+        response.setHeader('Cache-Control', 'public, s-maxage=86400, stale-while-revalidate=43200');
+
+        const { username } = request.query;
+
+        if (!username) {
+            return response.status(400).json({ error: 'Username manquant' });
+        }
+
         const tasks = [];
         let allFilms = [];
         let watchedCount = 0;
         let watchlistCount = 0;
-        let cpuTime = 0; // Initialize cpuTime
+        let cpuTime = 0; 
 
         // 1. Films Watched (Page 1)
         const filmsHtml = await getPage(`https://letterboxd.com/${username}/films/`);
         if (filmsHtml) {
-            const tCpuStart = performance.now();
+            const tCpuStart = now();
             // Parse Page 1
             const page1Films = parseFilms(filmsHtml, username, false);
             allFilms.push(...page1Films);
@@ -97,7 +103,7 @@ export default async function handler(request, response) {
             } else {
                 watchedCount = page1Films.length;
             }
-            cpuTime += (performance.now() - tCpuStart);
+            cpuTime += (now() - tCpuStart);
 
             // Generate tasks for remaining pages (72 films per page)
             if (watchedCount > 72) {
@@ -111,7 +117,7 @@ export default async function handler(request, response) {
         // 2. Watchlist (Page 1)
         const watchlistHtml = await getPage(`https://letterboxd.com/${username}/watchlist/`);
         if (watchlistHtml) {
-            const tCpuStart = performance.now();
+            const tCpuStart = now();
             // Parse Page 1
             const page1Watchlist = parseFilms(watchlistHtml, username, true);
             allFilms.push(...page1Watchlist);
@@ -129,7 +135,7 @@ export default async function handler(request, response) {
             } else {
                 watchlistCount = page1Watchlist.length;
             }
-            cpuTime += (performance.now() - tCpuStart);
+            cpuTime += (now() - tCpuStart);
 
             // Generate tasks for remaining pages (28 films per page)
             if (watchlistCount > 28) {
@@ -146,15 +152,15 @@ export default async function handler(request, response) {
             const batch = tasks.slice(i, i + BATCH_SIZE);
             const results = await Promise.all(batch.map(async (task) => {
                 const html = await getPage(task.url);
-                const tCpuStart = performance.now();
+                const tCpuStart = now();
                 const res = parseFilms(html, username, task.type === 'watchlist');
-                cpuTime += (performance.now() - tCpuStart);
+                cpuTime += (now() - tCpuStart);
                 return res;
             }));
             results.forEach(films => allFilms.push(...films));
         }
 
-        const end = performance.now();
+        const end = now();
         const totalDuration = end - start;
         const netDuration = totalDuration - cpuTime;
         
@@ -170,6 +176,10 @@ export default async function handler(request, response) {
         });
 
     } catch (error) {
-        return response.status(500).json({ error: error.message });
+        console.error('[CRITICAL ERROR] api/scrape failed:', error);
+        return response.status(500).json({ 
+            error: error.message,
+            stack: process.env.NODE_ENV === 'development' ? error.stack : undefined
+        });
     }
 }

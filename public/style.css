@@ -20,7 +20,7 @@
 }
 
 html, body {
-    overscroll-behavior-y: none; /* Prevent scroll bounce */
+    /* overscroll-behavior-y: none; Removed to allow pull-to-refresh on mobile */
 }
 
 body {
