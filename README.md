@@ -2,6 +2,16 @@
 
 **MatchBoxd** is an AI-powered movie recommendation engine designed for [Letterboxd](https://letterboxd.com/) users. By analyzing your profile, it helps you discover your next favorite movie, from hidden gems to the biggest classics.
 
+<p align="center">
+  <br />
+  <a href="https://recobxd.vercel.app/">
+    <b>Go visit MatchBoxd here </b>
+  </a>
+  <br />
+</p>
+
+<img width="2879" height="1799" alt="Capture d’écran du 2025-12-24 17-03-06" src="https://github.com/user-attachments/assets/57c78ec7-d41c-4fbd-8fae-e34bb99a3430" />
+
 
 ## How it Works
 
