@@ -1,0 +1,148 @@
+/* Hero Section */
+.hero-section {
+    text-align: center;
+    margin-bottom: 4rem;
+    /* Positionnement demandé : texte au niveau de la fin du carrousel (60vh) */
+    padding-top: 45vh; 
+}
+
+/* --- Search Bar Reset & Redesign --- */
+.search-wrapper {
+    /* Layout Container */
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    
+    /* Dimensions & Spacing */
+    width: 100%;
+    max-width: 480px;
+    height: 60px; /* Hauteur fixe pour éviter les écrasements */
+    margin: 3rem auto 0;
+    padding: 5px; /* Padding interne pour le bouton */
+    
+    /* Visual Style (Glassmorphism) */
+    background: rgba(20, 20, 25, 0.6); /* Fond sombre semi-transparent */
+    backdrop-filter: blur(10px);
+    -webkit-backdrop-filter: blur(10px);
+    border: 1px solid rgba(255, 255, 255, 0.1);
+    border-radius: 100px; /* Pill shape */
+    
+    /* Shadow & Depth */
+    box-shadow: 
+        0 4px 24px -1px rgba(0, 0, 0, 0.2),
+        0 0 0 1px rgba(0, 0, 0, 0.1);
+        
+    transition: all 0.3s ease;
+    z-index: 100;
+}
+
+.search-wrapper:focus-within {
+    background: rgba(20, 20, 25, 0.8);
+    border-color: var(--accent-color);
+    box-shadow: 
+        0 8px 32px -4px rgba(0, 0, 0, 0.3),
+        0 0 0 2px rgba(139, 92, 246, 0.2); /* Glow violet */
+    transform: translateY(-2px);
+}
+
+.search-input {
+    /* Flex behavior */
+    flex: 1; /* Prend tout l'espace restant */
+    min-width: 0; /* Empêche le débordement flex */
+    
+    /* Reset complet */
+    background: transparent;
+    border: none;
+    outline: none;
+    
+    /* Typography */
+    color: var(--white);
+    font-size: 1.1rem;
+    font-weight: 500;
+    
+    /* Spacing */
+    height: 100%;
+    padding: 0 24px; /* Espace à gauche */
+}
+
+.search-input::placeholder {
+    color: rgba(156, 163, 175, 0.8);
+    font-weight: 400;
+    font-style: italic;
+}
+
+.search-btn {
+    /* Dimensions */
+    width: 50px;
+    height: 50px;
+    flex-shrink: 0;
+    
+    /* Appearance - Force reset */
+    background: transparent !important;
+    border: none;
+    border-radius: 50%;
+    padding: 0;
+    box-shadow: none !important; /* Ensure no shadow on the button itself */
+    
+    /* Flex centering */
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    
+    cursor: pointer;
+    transition: transform 0.2s ease;
+    
+    /* Mobile fix */
+    -webkit-tap-highlight-color: transparent;
+}
+
+.search-btn svg {
+    width: 24px;
+    height: 24px;
+    /* Force white for visibility */
+    stroke: #ffffff !important; 
+    stroke-width: 2;
+    fill: none !important;
+    opacity: 0.8;
+    transition: all 0.3s ease;
+    /* Ensure no initial filter */
+    filter: none;
+}
+
+/* Hover State */
+@media (hover: hover) {
+    .search-btn:hover svg {
+        transform: scale(1.15);
+        opacity: 1;
+        /* Glow très doux et diffus */
+        filter: drop-shadow(0 0 12px rgba(139, 92, 246, 0.6));
+    }
+}
+
+/* Active State */
+.search-btn:active {
+    transform: scale(0.95);
+}
+
+.search-btn:active svg {
+    stroke: var(--accent-color) !important;
+    /* Glow un peu plus intense au clic */
+    filter: drop-shadow(0 0 5px rgba(139, 92, 246, 0.8));
+}
+
+@media (max-width: 768px) {
+    .hero-section {
+        padding-top: 30vh;
+    }
+
+    .search-wrapper {
+        height: 50px;
+        margin-top: 2rem;
+    }
+    
+    /* Ensure touch target is comfortable */
+    .search-btn {
+        width: 48px;
+        height: 48px;
+    }
+}

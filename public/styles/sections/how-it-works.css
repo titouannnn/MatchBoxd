@@ -1,0 +1,132 @@
+/* How it works section */
+.how-container {
+    padding-top: 20px !important;
+    margin-top: 50px;
+    max-width: 800px;
+    margin-left: auto;
+    margin-right: auto;
+    color: #e0e0e0;
+    padding-bottom: 100px;
+}
+
+.how-content h1 {
+    font-size: 2.5rem;
+    font-weight: 700;
+    margin-bottom: 40px;
+    color: #e0e0e0;
+    letter-spacing: -0.02em;
+}
+
+.how-content h2 {
+    font-size: 1.8rem;
+    font-weight: 600;
+    margin-top: 60px;
+    margin-bottom: 20px;
+    color: #e0e0e0;
+    border-bottom: 1px solid var(--border-color);
+    padding-bottom: 10px;
+}
+
+.how-content h3 {
+    font-size: 1.4rem;
+    font-weight: 600;
+    margin-top: 40px;
+    margin-bottom: 15px;
+    color: #e0e0e0;
+}
+
+.how-content h4 {
+    font-size: 1.1rem;
+    font-weight: 600;
+    margin-top: 30px;
+    margin-bottom: 10px;
+    color: #e0e0e0;
+}
+
+.how-content p {
+    font-size: 1.1rem;
+    line-height: 1.7;
+    margin-bottom: 20px;
+    font-weight: 300;
+    color: #e0e0e0;
+}
+
+.how-content a {
+    color: var(--accent-color);
+    text-decoration: underline;
+    transition: color 0.2s;
+}
+
+.how-content a:hover {
+    color: var(--accent-hover);
+}
+
+.how-content strong {
+    color: #e0e0e0;
+    font-weight: 600;
+}
+
+.how-content ul {
+    margin-bottom: 20px;
+    padding-left: 20px;
+}
+
+.how-content li {
+    margin-bottom: 10px;
+    line-height: 1.6;
+    color: #e0e0e0;
+}
+
+.table-wrapper {
+    margin: 30px 0;
+    background: var(--card-bg);
+    border-radius: 12px;
+    padding: 20px;
+    border: 1px solid var(--border-color);
+}
+
+.data-table {
+    width: 100%;
+    border-collapse: collapse;
+}
+
+.data-table td {
+    padding: 12px;
+    border-bottom: 1px solid rgba(255,255,255,0.05);
+    color: #e0e0e0;
+}
+
+.data-table tr:last-child td {
+    border-bottom: none;
+}
+
+.content-image {
+    max-width: 300px;
+    height: auto;
+    border-radius: 12px;
+    margin: 40px auto;
+    border: none;
+    display: block;
+}
+
+figure {
+    margin: 0;
+    text-align: center;
+}
+
+figcaption {
+    margin-top: 10px;
+    font-size: 0.9rem;
+    color: #e0e0e0;
+    font-style: italic;
+    opacity: 0.8;
+}
+
+.math-block {
+    overflow-x: auto;
+    padding: 20px 0;
+    margin: 20px 0;
+    text-align: center;
+    font-size: 1.1em;
+    color: #e0e0e0;
+}

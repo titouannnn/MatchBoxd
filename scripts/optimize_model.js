@@ -9,6 +9,11 @@ const INPUT_FILE = path.join(__dirname, '../public/data/model_data.json');
 const OUTPUT_META = path.join(__dirname, '../public/data/model_metadata.json');
 const OUTPUT_BIN = path.join(__dirname, '../public/data/model_vectors.bin');
 
+/**
+ * Main execution block.
+ * Reads the large JSON model, separates metadata from vectors,
+ * and saves vectors in a binary format (Float32Array) for faster loading and smaller size.
+ */
 console.log("Reading JSON model...");
 const rawData = fs.readFileSync(INPUT_FILE, 'utf8');
 const data = JSON.parse(rawData);

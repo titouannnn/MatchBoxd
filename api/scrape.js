@@ -1,26 +1,38 @@
-// import * as cheerio from 'cheerio'; // Removed to save CPU
-
 const HEADERS = {
     "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36"
 };
 
+/**
+ * Fetches the HTML content of a URL.
+ * 
+ * @param {string} url - The URL to fetch.
+ * @returns {Promise<string|null>} The HTML content, or null if the request failed.
+ */
 async function getPage(url) {
     try {
         const res = await fetch(url, { headers: HEADERS });
         if (res.status === 200) return await res.text();
         return null;
     } catch (e) {
-        console.error(`Erreur fetch ${url}:`, e);
+        console.error(`Error fetching ${url}:`, e);
         return null;
     }
 }
 
+/**
+ * Parses the HTML of a Letterboxd page to extract film data.
+ * Uses Regex and String splitting for performance instead of a DOM parser.
+ * 
+ * @param {string} html - The HTML content of the page.
+ * @param {string} username - The username associated with the films.
+ * @param {boolean} [isWatchlist=false] - Whether the films are from the watchlist.
+ * @returns {Array<Object>} An array of film objects containing username, movie_id, title, and rating.
+ */
 function parseFilms(html, username, isWatchlist = false) {
     if (!html) return [];
     const films = [];
     
-    // Optimized: Use String.split and Regex instead of Cheerio
-    // This avoids building the DOM tree for thousands of elements
+    // Split HTML by grid items to avoid full DOM parsing
     const items = html.split('<li class="griditem');
     
     // Skip the first chunk (header/nav before first item)
@@ -37,7 +49,7 @@ function parseFilms(html, username, isWatchlist = false) {
             let rating = null;
             
             // Extract Rating (only if not watchlist, usually)
-            // Look for 'rated-X' class
+            // Look for 'rated-X' class where X is rating * 2
             const rateMatch = chunk.match(/rated-(\d+)/);
             if (rateMatch) {
                 rating = parseInt(rateMatch[1], 10) / 2;
@@ -54,24 +66,30 @@ function parseFilms(html, username, isWatchlist = false) {
     return films;
 }
 
+/**
+ * Vercel Serverless Function to scrape Letterboxd user data.
+ * Retrieves watched films and watchlist for a given username.
+ * Handles pagination and concurrent requests.
+ * 
+ * @param {Object} request - The HTTP request object.
+ * @param {Object} response - The HTTP response object.
+ */
 export default async function handler(request, response) {
-    // Polyfill for performance.now() in case it's missing in some Vercel environments
+    // Polyfill for performance.now()
     const now = (typeof performance !== 'undefined' && performance.now) 
         ? () => performance.now() 
         : () => Date.now();
 
     const start = now();
-    console.log('[EDGE EXECUTION] Request received for: ' + request.url);
-    console.log('[Edge Request] Executing api/scrape');
     
     try {
-        // Cache Vercel Edge : 24h (86400s) en cache partagé, revalidation en arrière-plan autorisée
+        // Cache for 24h (86400s)
         response.setHeader('Cache-Control', 'public, s-maxage=86400, stale-while-revalidate=43200');
 
         const { username } = request.query;
 
         if (!username) {
-            return response.status(400).json({ error: 'Username manquant' });
+            return response.status(400).json({ error: 'Missing username' });
         }
 
         const tasks = [];
@@ -88,10 +106,7 @@ export default async function handler(request, response) {
             const page1Films = parseFilms(filmsHtml, username, false);
             allFilms.push(...page1Films);
 
-            // Get Count from tooltip (e.g. "153 films")
-            // Optimized: Regex instead of Cheerio
-            // <span class="tooltip" title="1,543 films">
-            // Fix: Handle &nbsp; entity in title
+            // Get Count from tooltip (e.g. "1,543 films")
             const tooltipMatch = filmsHtml.match(/class="tooltip"[^>]*title="(.+?)films"/);
             if (tooltipMatch) {
                 const countStr = tooltipMatch[1]
@@ -123,7 +138,6 @@ export default async function handler(request, response) {
             allFilms.push(...page1Watchlist);
 
             // Get Count
-            // <span class="js-watchlist-count">123</span>
             const wlMatch = watchlistHtml.match(/class="[^"]*js-watchlist-count[^"]*">([^<]+)</);
             if (wlMatch) {
                 const countStr = wlMatch[1]
@@ -172,7 +186,7 @@ export default async function handler(request, response) {
             watchlist_count: watchlistCount,
             total_films_retrieved: allFilms.length,
             films: allFilms,
-            source: "Vercel Serverless Function (Optimized)"
+            source: "Vercel Serverless Function"
         });
 
     } catch (error) {

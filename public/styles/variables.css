@@ -1,0 +1,16 @@
+:root {
+    --bg-color: #0f1115; /* Plus sombre pour le contraste */
+    --card-bg: rgba(31, 36, 43, 0.8); /* Semi-transparent */
+    --text-color: #9ab;
+    --accent-color: #8b5cf6; /* Violet Moderne */
+    --accent-hover: #7c3aed;
+    --white: #ffffff;
+    --border-color: #2c3440;
+}
+
+@font-face {
+    font-family: 'Frick';
+    src: url('../data/Frick0.3-Regular.woff') format('woff');
+    font-weight: normal;
+    font-style: normal;
+}

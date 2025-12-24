@@ -1,0 +1,99 @@
+/* Results Area */
+.hidden {
+    display: none;
+}
+
+.status-bar {
+    display: flex;
+    justify-content: space-between;
+    margin-bottom: 1rem;
+    font-size: 0.9rem;
+    border-bottom: 1px solid var(--border-color);
+    padding-bottom: 0.5rem;
+}
+
+.tooltip {
+    font-size: 0.7em;
+    color: #667;
+    font-weight: normal !important;
+    margin-left: 5px;
+}
+
+/* Info Icons & Tooltips */
+.label-with-icon {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    margin-bottom: 0.8rem;
+    color: var(--white);
+    font-weight: 600;
+    font-size: 0.9rem;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+}
+
+.info-icon {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 22px; /* Agrandissement pour une meilleure lisibilité (Guidelines: ~20-24px) */
+    height: 22px;
+    border-radius: 50%;
+    background: rgba(255, 255, 255, 0.15); /* Contraste légèrement augmenté */
+    color: var(--text-color);
+    cursor: help;
+    position: relative;
+    transition: all 0.2s cubic-bezier(0.25, 0.8, 0.25, 1);
+    flex-shrink: 0;
+}
+
+.info-icon svg {
+    width: 12px; /* Taille de l'icône ajustée */
+    height: 12px;
+    stroke-width: 2.5; /* Trait un peu plus épais pour la lisibilité */
+    display: block; /* Évite les décalages liés à la ligne de base du texte */
+}
+
+.info-icon:hover {
+    background: var(--accent-color);
+    color: white;
+}
+
+.info-icon .tooltip-text {
+    visibility: hidden;
+    width: 220px;
+    background-color: #1f242b;
+    color: #fff;
+    text-align: center;
+    border-radius: 6px;
+    padding: 10px;
+    position: absolute;
+    z-index: 10;
+    bottom: 150%;
+    left: 50%;
+    transform: translateX(-50%);
+    opacity: 0;
+    transition: opacity 0.3s;
+    font-size: 0.8rem;
+    text-transform: none;
+    font-weight: 400;
+    box-shadow: 0 10px 30px rgba(0,0,0,0.5);
+    border: 1px solid var(--border-color);
+    pointer-events: none;
+}
+
+.info-icon .tooltip-text::after {
+    content: "";
+    position: absolute;
+    top: 100%;
+    left: 50%;
+    margin-left: -5px;
+    border-width: 5px;
+    border-style: solid;
+    border-color: #1f242b transparent transparent transparent;
+}
+
+.info-icon:hover .tooltip-text {
+    visibility: visible;
+    opacity: 1;
+}

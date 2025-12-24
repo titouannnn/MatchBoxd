@@ -1,0 +1,221 @@
+.movie-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+    gap: 1rem;
+    grid-auto-flow: dense;
+}
+
+.movie-card {
+    position: relative;
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+    text-decoration: none;
+    cursor: pointer;
+    background-color: transparent;
+    border: none;
+    overflow: visible;
+    min-height: auto;
+}
+
+.poster-container {
+    position: relative;
+    width: 100%;
+    aspect-ratio: 2/3;
+    border-radius: 12px;
+    overflow: hidden;
+    background-color: var(--card-bg);
+    border: 1px solid var(--border-color);
+    transition: transform 0.3s cubic-bezier(0.25, 0.8, 0.25, 1), border-color 0.3s, box-shadow 0.3s;
+}
+
+.bento-medium .poster-container {
+    aspect-ratio: 16/9;
+}
+
+.movie-card:hover .poster-container {
+    transform: scale(1.03);
+    z-index: 10;
+    border-color: var(--accent-color);
+    box-shadow: 0 10px 30px -10px rgba(139, 92, 246, 0.5);
+}
+
+/* Shine Effect */
+.shine-effect {
+    position: absolute;
+    top: 0;
+    bottom: 0;
+    left: 0;
+    right: 0;
+    background: linear-gradient(
+        0deg,
+        transparent,
+        rgba(255, 255, 255, 0.1) 40%,
+        rgba(255, 255, 255, 0.4) 50%,
+        rgba(255, 255, 255, 0.1) 60%,
+        transparent
+    );
+    transform: translateY(-100%);
+    transition: transform 0.6s;
+    pointer-events: none;
+    z-index: 5;
+}
+
+.movie-card:hover .shine-effect {
+    transform: translateY(100%);
+    transition: transform 0.6s;
+}
+
+.movie-logo {
+    position: absolute;
+    bottom: 20px; /* Higher */
+    right: 20px; /* More padding */
+    max-width: 180px; /* Bigger */
+    max-height: 90px; /* Bigger */
+    object-fit: contain;
+    filter: drop-shadow(0 2px 4px rgba(0,0,0,0.8));
+    z-index: 2;
+}
+
+.match-score {
+    position: absolute;
+    top: 10px;
+    right: 10px;
+    background: rgba(0, 0, 0, 0.6);
+    color: rgba(255, 255, 255, 0.9);
+    padding: 4px 8px;
+    border-radius: 12px;
+    font-size: 0.8rem;
+    font-weight: 500;
+    border: 1px solid rgba(255, 255, 255, 0.15);
+    backdrop-filter: blur(4px);
+    z-index: 5;
+    cursor: default;
+    display: flex;
+    flex-direction: column;
+    align-items: flex-end;
+    transition: background 0.2s;
+}
+
+.match-score:hover {
+    background: rgba(0, 0, 0, 0.8);
+}
+
+.score-tooltip {
+    display: none;
+    position: absolute;
+    top: 100%;
+    right: 0;
+    width: 140px;
+    background: rgba(20, 20, 25, 0.95);
+    color: #ccc;
+    padding: 8px;
+    border-radius: 6px;
+    font-size: 0.7rem;
+    font-weight: normal;
+    margin-top: 5px;
+    border: 1px solid rgba(255, 255, 255, 0.1);
+    text-align: right;
+    z-index: 20;
+    box-shadow: 0 4px 12px rgba(0,0,0,0.5);
+}
+
+.match-score:hover .score-tooltip,
+.match-score.active .score-tooltip {
+    display: block;
+}
+
+.rank {
+    position: absolute;
+    bottom: 10px;
+    left: 10px;
+    font-size: 1.2rem;
+    font-weight: bold;
+    color: var(--accent-color);
+    text-shadow: 0 2px 4px rgba(0,0,0,0.8);
+    z-index: 2;
+    background: rgba(0,0,0,0.7);
+    padding: 2px 8px;
+    border-radius: 6px;
+    backdrop-filter: blur(4px);
+}
+
+.movie-title {
+    color: var(--white);
+    font-weight: 600;
+    font-size: 1rem;
+    line-height: 1.3;
+    text-align: center;
+    margin: 0;
+    text-shadow: none;
+    width: 100%;
+    max-width: 100%;
+    display: -webkit-box;
+    -webkit-line-clamp: 2;
+    -webkit-box-orient: vertical;
+    overflow: hidden;
+    transition: color 0.2s;
+}
+
+.movie-card:hover .movie-title {
+    color: var(--accent-color);
+}
+
+.bento-medium .movie-title {
+    max-width: 100%;
+}
+
+.lb-link {
+    color: #ccc;
+    font-size: 0.8rem;
+    text-decoration: none;
+    opacity: 0.8;
+    transition: opacity 0.2s;
+}
+
+.lb-link:hover {
+    opacity: 1;
+    color: var(--accent-color);
+}
+
+/* Bento Classes */
+.bento-hero {
+    grid-column: span 2;
+    grid-row: span 2;
+    /* Hero is 2x2, so it keeps the aspect ratio of the grid cells roughly */
+    aspect-ratio: auto; 
+}
+
+.bento-medium {
+    grid-column: span 2;
+    grid-row: span 1;
+    aspect-ratio: auto; /* Wide */
+}
+
+.bento-vertical {
+    grid-column: span 1;
+    grid-row: span 2;
+    aspect-ratio: auto; /* Tall */
+}
+
+.bento-small {
+    grid-column: span 1;
+    grid-row: span 1;
+}
+
+@media (max-width: 768px) {
+    .movie-grid {
+        grid-template-columns: repeat(2, 1fr);
+        gap: 20px; /* Espace augmenté pour plus de clarté */
+        padding-bottom: 2rem; /* Marge en bas de page */
+    }
+
+    .movie-card {
+        min-height: 220px;
+    }
+
+    .bento-hero, .bento-medium, .bento-vertical {
+        grid-column: span 1;
+        grid-row: span 1;
+    }
+}
