@@ -63,5 +63,3 @@ The project follows a lightweight serverless architecture, separating the static
 ## Author
 
 **Titouan Mokrani**
-- [GitHub](https://github.com/titouannnn)
-- [Letterboxd](https://letterboxd.com/titouannnnnn/)
